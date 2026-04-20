@@ -17,7 +17,7 @@ jobs:
           set -euo pipefail
           [ -n "$APP_URL" ] || { echo "APP_URL secret missing"; exit 1; }
           [ -n "$CRON_SECRET" ] || { echo "CRON_SECRET secret missing"; exit 1; }
-          response=$(curl -sS -L --post-redir 307,308 -o /tmp/body -w "%{http_code}" \
+          response=$(curl -sS -o /tmp/body -w "%{http_code}" \
             -X POST "$APP_URL/api/cron/check" \
             -H "Authorization: Bearer $CRON_SECRET")
           echo "HTTP $response"
