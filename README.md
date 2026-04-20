@@ -1,4 +1,6 @@
-# Pagedog
+<p align="center">
+  <img src="public/logo.svg" alt="Pagedog" width="320">
+</p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
 [![Built with Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](https://nextjs.org)
