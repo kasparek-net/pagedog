@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import { shortenUrl } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -87,8 +88,8 @@ export default async function HomePage() {
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-neutral-500 truncate mt-0.5">
-                    {w.url}
+                  <div className="text-xs text-neutral-500 truncate mt-0.5" title={w.url}>
+                    {shortenUrl(w.url, 60)}
                   </div>
                 </div>
                 <div className="mt-2 sm:mt-0 sm:text-right text-xs text-neutral-500 shrink-0">

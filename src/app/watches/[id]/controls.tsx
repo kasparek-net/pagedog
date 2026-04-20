@@ -2,22 +2,26 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { INTERVAL_OPTIONS } from "@/lib/format";
 
 export default function WatchControls({
   id,
   isActive,
   label: initialLabel,
   notifyEmail: initialEmail,
+  intervalMinutes: initialInterval,
 }: {
   id: string;
   isActive: boolean;
   label: string;
   notifyEmail: string;
+  intervalMinutes: number;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [label, setLabel] = useState(initialLabel);
   const [email, setEmail] = useState(initialEmail);
+  const [interval, setIntervalValue] = useState(initialInterval);
 
   async function patch(data: Record<string, unknown>) {
     setBusy(true);
@@ -47,11 +51,12 @@ export default function WatchControls({
 
   return (
     <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid sm:grid-cols-3 gap-3">
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           onBlur={() => label !== initialLabel && patch({ label })}
+          placeholder="Název"
           className="rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm outline-none"
         />
         <input
@@ -59,8 +64,24 @@ export default function WatchControls({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onBlur={() => email !== initialEmail && patch({ notifyEmail: email })}
+          placeholder="Email"
           className="rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm outline-none"
         />
+        <select
+          value={interval}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setIntervalValue(v);
+            patch({ intervalMinutes: v });
+          }}
+          className="rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm outline-none"
+        >
+          {INTERVAL_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              Každých {o.label}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="flex flex-wrap gap-2">
         <button

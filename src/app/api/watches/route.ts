@@ -14,6 +14,7 @@ const CreateSchema = z.object({
   url: z.string().url().max(2000),
   selector: z.string().min(1).max(500),
   notifyEmail: z.string().email().max(200),
+  intervalMinutes: z.number().int().min(15).max(10080).default(60),
 });
 
 export async function GET() {
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
-  const { label, url, selector, notifyEmail } = parsed.data;
+  const { label, url, selector, notifyEmail, intervalMinutes } = parsed.data;
 
   let parsedUrl: URL;
   try {
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
       lastHash: initial.ok ? initial.hash : null,
       lastError: initial.ok ? null : initial.error,
       lastCheckedAt: new Date(),
+      intervalMinutes,
     },
   });
   return NextResponse.json({ watch }, { status: 201 });

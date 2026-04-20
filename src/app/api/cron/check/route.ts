@@ -80,13 +80,19 @@ async function processWatch(watch: {
 }
 
 async function runChecks() {
-  const watches = await db.watch.findMany({ where: { isActive: true } });
+  const all = await db.watch.findMany({ where: { isActive: true } });
+  const now = Date.now();
+  const due = all.filter((w) => {
+    if (!w.lastCheckedAt) return true;
+    const elapsed = now - w.lastCheckedAt.getTime();
+    return elapsed >= w.intervalMinutes * 60_000 - 30_000;
+  });
   const concurrency = 5;
   let changed = 0;
   let same = 0;
   let errors = 0;
-  for (let i = 0; i < watches.length; i += concurrency) {
-    const slice = watches.slice(i, i + concurrency);
+  for (let i = 0; i < due.length; i += concurrency) {
+    const slice = due.slice(i, i + concurrency);
     const results = await Promise.all(slice.map(processWatch));
     for (const r of results) {
       if (r === "changed") changed++;
@@ -94,7 +100,7 @@ async function runChecks() {
       else errors++;
     }
   }
-  return { checked: watches.length, changed, same, errors };
+  return { active: all.length, checked: due.length, changed, same, errors };
 }
 
 export async function POST(req: NextRequest) {

@@ -9,6 +9,7 @@ const PatchSchema = z.object({
   label: z.string().min(1).max(100).optional(),
   notifyEmail: z.string().email().max(200).optional(),
   isActive: z.boolean().optional(),
+  intervalMinutes: z.number().int().min(15).max(10080).optional(),
 });
 
 async function getOwned(id: string, userId: string) {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import { intervalLabel, shortenUrl } from "@/lib/format";
 import WatchControls from "./controls";
 
 export const dynamic = "force-dynamic";
@@ -35,9 +36,10 @@ export default async function WatchDetail({
           href={watch.url}
           target="_blank"
           rel="noreferrer"
-          className="text-sm text-neutral-500 hover:underline break-all"
+          title={watch.url}
+          className="inline-block max-w-full text-sm text-neutral-500 hover:underline truncate"
         >
-          {watch.url}
+          {shortenUrl(watch.url, 70)} ↗
         </a>
       </div>
 
@@ -60,6 +62,8 @@ export default async function WatchDetail({
         <Box title="Stav">
           <span className="text-sm">
             {watch.isActive ? "aktivní" : "pauznuto"}
+            {" · interval "}
+            {intervalLabel(watch.intervalMinutes)}
             {" · poslední check "}
             {watch.lastCheckedAt
               ? new Date(watch.lastCheckedAt).toLocaleString("cs-CZ")
@@ -73,6 +77,7 @@ export default async function WatchDetail({
         isActive={watch.isActive}
         label={watch.label}
         notifyEmail={watch.notifyEmail}
+        intervalMinutes={watch.intervalMinutes}
       />
 
       <div>

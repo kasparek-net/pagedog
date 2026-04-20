@@ -20,6 +20,7 @@ model Watch {
   lastCheckedAt DateTime?
   lastError     String?
   isActive      Boolean   @default(true)
+  intervalMinutes Int     @default(60)
   createdAt     DateTime  @default(now())
   changes       Change[]
 

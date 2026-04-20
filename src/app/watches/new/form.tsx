@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { INTERVAL_OPTIONS } from "@/lib/format";
 
 type TestState =
   | { status: "idle" }
@@ -19,6 +20,7 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
   const [pickedText, setPickedText] = useState("");
   const [label, setLabel] = useState("");
   const [email, setEmail] = useState(defaultEmail);
+  const [intervalMinutes, setIntervalMinutes] = useState(60);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [test, setTest] = useState<TestState>({ status: "idle" });
@@ -93,7 +95,7 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
       const res = await fetch("/api/watches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label, url, selector, notifyEmail: email }),
+        body: JSON.stringify({ label, url, selector, notifyEmail: email, intervalMinutes }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({ error: "Uložení selhalo" }));
@@ -179,7 +181,7 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-3 pt-2 border-t border-neutral-200 dark:border-neutral-800">
+          <div className="grid sm:grid-cols-3 gap-3 pt-2 border-t border-neutral-200 dark:border-neutral-800">
             <Field label="Název">
               <input
                 required
@@ -197,6 +199,19 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm outline-none"
               />
+            </Field>
+            <Field label="Kontrolovat každých">
+              <select
+                value={intervalMinutes}
+                onChange={(e) => setIntervalMinutes(Number(e.target.value))}
+                className="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm outline-none"
+              >
+                {INTERVAL_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
             </Field>
           </div>
 
