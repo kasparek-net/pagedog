@@ -4,7 +4,13 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
 export type ExtractResult =
-  | { ok: true; value: string; hash: string; imageUrl: string | null }
+  | {
+      ok: true;
+      value: string;
+      hash: string;
+      imageUrl: string | null;
+      faviconUrl: string | null;
+    }
   | { ok: false; error: string };
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -105,7 +111,8 @@ export function extractFromHtml(
   const text = el.text().replace(/\s+/g, " ").trim();
   if (!text) return { ok: false, error: "Element is empty" };
   const imageUrl = baseUrl ? extractOgImage($, baseUrl) : null;
-  return { ok: true, value: text, hash: sha256(text), imageUrl };
+  const faviconUrl = baseUrl ? extractFavicon($, baseUrl) : null;
+  return { ok: true, value: text, hash: sha256(text), imageUrl, faviconUrl };
 }
 
 export function extractOgImage(
@@ -124,6 +131,48 @@ export function extractOgImage(
     if (resolved) return resolved;
   }
   return null;
+}
+
+export function extractFavicon(
+  $: cheerio.CheerioAPI,
+  baseUrl: string,
+): string | null {
+  const links = $(
+    'link[rel~="icon" i], link[rel="shortcut icon" i], link[rel="apple-touch-icon" i], link[rel="apple-touch-icon-precomposed" i]',
+  )
+    .toArray()
+    .map((el) => {
+      const $el = $(el);
+      const href = $el.attr("href");
+      const rel = ($el.attr("rel") ?? "").toLowerCase();
+      const sizes = $el.attr("sizes") ?? "";
+      const maxSize = sizes
+        .split(/\s+/)
+        .map((s) => {
+          const n = parseInt(s.split("x")[0] ?? "", 10);
+          return Number.isFinite(n) ? n : 0;
+        })
+        .reduce((a, b) => Math.max(a, b), 0);
+      return { href, rel, maxSize };
+    })
+    .filter((l): l is { href: string; rel: string; maxSize: number } => !!l.href);
+
+  links.sort((a, b) => {
+    const aTouch = a.rel.includes("apple-touch-icon") ? 1 : 0;
+    const bTouch = b.rel.includes("apple-touch-icon") ? 1 : 0;
+    if (aTouch !== bTouch) return bTouch - aTouch;
+    return b.maxSize - a.maxSize;
+  });
+
+  for (const l of links) {
+    const resolved = resolveImageUrl(l.href, baseUrl);
+    if (resolved) return resolved;
+  }
+  try {
+    return new URL("/favicon.ico", baseUrl).toString();
+  } catch {
+    return null;
+  }
 }
 
 function resolveImageUrl(raw: string | undefined, baseUrl: string): string | null {

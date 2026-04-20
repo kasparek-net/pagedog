@@ -63,6 +63,7 @@ export default async function HomePage() {
                 lastError: w.lastError,
                 lastCheckedAt: w.lastCheckedAt ? w.lastCheckedAt.toISOString() : null,
                 imageUrl: w.imageUrl,
+                faviconUrl: w.faviconUrl,
                 changeCount: w._count.changes,
               }}
             />

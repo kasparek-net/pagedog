@@ -20,6 +20,7 @@ model Watch {
   lastCheckedAt DateTime?
   lastError     String?
   imageUrl      String?
+  faviconUrl    String?
   isActive      Boolean   @default(true)
   intervalMinutes Int     @default(60)
   conditionType   String  @default("change")

@@ -58,6 +58,7 @@ async function processWatch(watch: {
           lastCheckedAt: new Date(),
           lastError: null,
           imageUrl: result.imageUrl,
+          faviconUrl: result.faviconUrl,
         },
       }),
       db.check.create({
@@ -106,6 +107,7 @@ async function processWatch(watch: {
         lastHash: result.hash,
         lastError: null,
         imageUrl: result.imageUrl,
+        faviconUrl: result.faviconUrl,
       },
     }),
     db.check.create({

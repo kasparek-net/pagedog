@@ -16,6 +16,7 @@ type Watch = {
   lastError: string | null;
   lastCheckedAt: string | null;
   imageUrl: string | null;
+  faviconUrl: string | null;
   changeCount: number;
 };
 
@@ -53,7 +54,7 @@ export function WatchRow({ watch }: { watch: Watch }) {
       <Link href={`/watches/${watch.id}`} className="block px-4 py-3 pr-14">
         <div className="sm:flex sm:items-center sm:justify-between gap-4">
           <div className="min-w-0 flex items-center gap-3">
-            <Thumbnail src={watch.imageUrl} />
+            <Thumbnail imageUrl={watch.imageUrl} faviconUrl={watch.faviconUrl} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="font-medium truncate">{watch.label}</span>
@@ -105,9 +106,19 @@ export function WatchRow({ watch }: { watch: Watch }) {
   );
 }
 
-function Thumbnail({ src }: { src: string | null }) {
-  const [errored, setErrored] = useState(false);
-  if (!src || errored) {
+function Thumbnail({
+  imageUrl,
+  faviconUrl,
+}: {
+  imageUrl: string | null;
+  faviconUrl: string | null;
+}) {
+  const [imgErrored, setImgErrored] = useState(false);
+  const [favErrored, setFavErrored] = useState(false);
+  const showImage = imageUrl && !imgErrored;
+  const showFavicon = faviconUrl && !favErrored;
+
+  if (!showImage && !showFavicon) {
     return (
       <div
         aria-hidden
@@ -121,19 +132,53 @@ function Thumbnail({ src }: { src: string | null }) {
       </div>
     );
   }
+
+  if (!showImage) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={faviconUrl!}
+        alt=""
+        width={48}
+        height={48}
+        loading="lazy"
+        decoding="async"
+        referrerPolicy="no-referrer"
+        onError={() => setFavErrored(true)}
+        className="shrink-0 w-12 h-12 rounded-md object-contain p-1.5 border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800"
+      />
+    );
+  }
+
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt=""
-      width={48}
-      height={48}
-      loading="lazy"
-      decoding="async"
-      referrerPolicy="no-referrer"
-      onError={() => setErrored(true)}
-      className="shrink-0 w-12 h-12 rounded-md object-cover border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800"
-    />
+    <div className="shrink-0 relative w-12 h-12">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={imageUrl!}
+        alt=""
+        width={48}
+        height={48}
+        loading="lazy"
+        decoding="async"
+        referrerPolicy="no-referrer"
+        onError={() => setImgErrored(true)}
+        className="w-12 h-12 rounded-md object-cover border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800"
+      />
+      {showFavicon && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={faviconUrl!}
+          alt=""
+          width={18}
+          height={18}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setFavErrored(true)}
+          className="absolute -bottom-1 -right-1 w-[18px] h-[18px] rounded-[4px] bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 object-contain p-[1px]"
+        />
+      )}
+    </div>
   );
 }
 
