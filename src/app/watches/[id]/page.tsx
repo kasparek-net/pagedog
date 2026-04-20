@@ -24,9 +24,11 @@ export default async function WatchDetail({
     take: 50,
   });
 
-  const nextMs = watch.lastCheckedAt
+  const dueMs = watch.lastCheckedAt
     ? watch.lastCheckedAt.getTime() + watch.intervalMinutes * 60_000
-    : null;
+    : Date.now();
+  const cronTickMs = Math.ceil(Date.now() / (15 * 60_000)) * (15 * 60_000);
+  const nextMs = Math.max(dueMs, cronTickMs);
 
   return (
     <div className="space-y-6">
@@ -74,10 +76,10 @@ export default async function WatchDetail({
             {watch.lastCheckedAt
               ? new Date(watch.lastCheckedAt).toLocaleString("en-US")
               : "never"}
-            {watch.isActive && nextMs !== null && (
+            {watch.isActive && (
               <>
-                {" · next "}
-                <Countdown targetMs={nextMs} prefix="in" overdue="due now" />
+                {" · next scan "}
+                <Countdown targetMs={nextMs} prefix="in" overdue="any second" />
               </>
             )}
           </div>

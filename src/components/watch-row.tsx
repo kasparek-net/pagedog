@@ -24,7 +24,9 @@ export function WatchRow({ watch }: { watch: Watch }) {
   const [pending, startTransition] = useTransition();
 
   const lastMs = watch.lastCheckedAt ? new Date(watch.lastCheckedAt).getTime() : null;
-  const nextMs = lastMs !== null ? lastMs + watch.intervalMinutes * 60_000 : null;
+  const dueMs = lastMs !== null ? lastMs + watch.intervalMinutes * 60_000 : Date.now();
+  const cronTickMs = Math.ceil(Date.now() / (15 * 60_000)) * (15 * 60_000);
+  const nextMs = Math.max(dueMs, cronTickMs);
 
   async function toggle(e: React.MouseEvent) {
     e.preventDefault();
@@ -70,10 +72,10 @@ export function WatchRow({ watch }: { watch: Watch }) {
           <div className="mt-2 sm:mt-0 sm:text-right text-xs text-neutral-500 shrink-0">
             <div>
               {watch.changeCount} {watch.changeCount === 1 ? "change" : "changes"}
-              {active && nextMs !== null && (
+              {active && (
                 <>
-                  {" · next "}
-                  <Countdown targetMs={nextMs} prefix="in" overdue="due" />
+                  {" · next scan "}
+                  <Countdown targetMs={nextMs} prefix="in" overdue="any second" />
                 </>
               )}
             </div>
