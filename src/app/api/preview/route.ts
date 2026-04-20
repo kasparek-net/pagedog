@@ -65,11 +65,11 @@ export async function GET(req: NextRequest) {
   $("script").remove();
   $("noscript").remove();
   $("link[rel='preload'][as='script']").remove();
-  $("iframe, object, embed, form").remove();
-  $("[onclick], [onmouseover], [onload]").each((_, el) => {
+  $("link[rel='modulepreload']").remove();
+  $("*").each((_, el) => {
     const attribs = (el as { attribs?: Record<string, string> }).attribs ?? {};
     for (const k of Object.keys(attribs)) {
-      if (k.startsWith("on")) $(el).removeAttr(k);
+      if (k.toLowerCase().startsWith("on")) $(el).removeAttr(k);
     }
   });
 
