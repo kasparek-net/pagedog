@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { SESSION_COOKIE, verifySessionValue } from "@/lib/session";
+import {
+  SESSION_COOKIE,
+  SESSION_RENEW_THRESHOLD_MS,
+  SESSION_TTL_MS,
+  createSessionValue,
+  parseSessionValue,
+} from "@/lib/session";
 
 const PUBLIC_PREFIXES = ["/sign-in", "/api/auth/", "/api/cron/"];
 
@@ -10,7 +16,8 @@ export default function proxy(req: NextRequest) {
     return NextResponse.next();
   }
   const cookie = req.cookies.get(SESSION_COOKIE)?.value;
-  if (!verifySessionValue(cookie)) {
+  const session = parseSessionValue(cookie);
+  if (!session) {
     if (path.startsWith("/api/")) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
@@ -19,7 +26,20 @@ export default function proxy(req: NextRequest) {
     url.search = "";
     return NextResponse.redirect(url);
   }
-  return NextResponse.next();
+
+  const res = NextResponse.next();
+  if (session.expiresAtMs - Date.now() < SESSION_RENEW_THRESHOLD_MS) {
+    res.cookies.set({
+      name: SESSION_COOKIE,
+      value: createSessionValue(session.email),
+      httpOnly: true,
+      secure: req.nextUrl.protocol === "https:",
+      sameSite: "lax",
+      path: "/",
+      maxAge: Math.floor(SESSION_TTL_MS / 1000),
+    });
+  }
+  return res;
 }
 
 export const config = {

@@ -3,7 +3,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const SESSION_COOKIE = "pd_session";
 const MAGIC_TTL_MS = 15 * 60 * 1000;
-export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+export const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+export const SESSION_RENEW_THRESHOLD_MS = 60 * 24 * 60 * 60 * 1000;
 
 function secret(): string {
   const s = process.env.AUTH_SECRET;
@@ -52,13 +53,21 @@ export function createSessionValue(email: string): string {
 }
 
 export function verifySessionValue(value: string | undefined | null): string | null {
+  const parsed = parseSessionValue(value);
+  return parsed?.email ?? null;
+}
+
+export function parseSessionValue(
+  value: string | undefined | null,
+): { email: string; expiresAtMs: number } | null {
   if (!value) return null;
   const parts = value.split("|");
   if (parts.length !== 3) return null;
   const [email, expStr, sig] = parts;
   if (!safeEq(sig, sign(`${email}|${expStr}`))) return null;
-  if (Number(expStr) < Date.now()) return null;
-  return email;
+  const exp = Number(expStr);
+  if (!Number.isFinite(exp) || exp < Date.now()) return null;
+  return { email, expiresAtMs: exp };
 }
 
 export async function getSessionEmail(): Promise<string | null> {

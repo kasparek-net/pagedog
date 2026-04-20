@@ -32,5 +32,6 @@ export async function GET(req: NextRequest) {
     path: "/",
     maxAge: Math.floor(SESSION_TTL_MS / 1000),
   });
+  res.headers.set("Cache-Control", "no-store");
   return res;
 }
