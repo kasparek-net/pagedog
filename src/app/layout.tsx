@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import Link from "next/link";
+import Image from "next/image";
 import { getSessionEmail } from "@/lib/session";
 import { getTheme } from "@/lib/theme";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -32,7 +33,8 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
         <header className="border-b border-neutral-200 dark:border-neutral-800 bg-white/70 dark:bg-neutral-900/70 backdrop-blur sticky top-0 z-10">
           <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-            <Link href="/" className="font-semibold tracking-tight">
+            <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+              <Image src="/icon.svg" alt="" width={28} height={28} className="shrink-0" priority />
               Pagedog
             </Link>
             <nav className="flex items-center gap-3 text-sm">
