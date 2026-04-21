@@ -58,6 +58,34 @@ export default function WatchControls({
     }
   }
 
+  const [checking, setChecking] = useState(false);
+  const [checkMsg, setCheckMsg] = useState<string | null>(null);
+
+  async function checkNow() {
+    setChecking(true);
+    setCheckMsg(null);
+    try {
+      const res = await fetch(`/api/watches/${id}/check`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setCheckMsg(data?.error ?? "Check failed");
+        return;
+      }
+      const label =
+        data?.status === "changed"
+          ? "change detected"
+          : data?.status === "error"
+            ? "check failed"
+            : "no change";
+      setCheckMsg(label);
+      router.refresh();
+    } catch {
+      setCheckMsg("Check failed");
+    } finally {
+      setChecking(false);
+    }
+  }
+
   return (
     <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 space-y-5">
       <div className="grid sm:grid-cols-2 gap-4">
@@ -112,7 +140,18 @@ export default function WatchControls({
           if (valid) patch({ conditionType, conditionValue: v.trim() });
         }}
       />
-      <div className="flex flex-wrap gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-800">
+      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-800">
+        <button
+          disabled={checking}
+          onClick={checkNow}
+          className="rounded-md bg-brand text-black px-3 py-1.5 text-sm font-medium hover:bg-brand-dark disabled:opacity-50"
+        >
+          {checking ? "Checking…" : "Check now"}
+        </button>
+        {checkMsg && (
+          <span className="text-xs text-neutral-500">{checkMsg}</span>
+        )}
+        <div className="grow" />
         <button
           disabled={busy}
           onClick={() => patch({ isActive: !isActive })}

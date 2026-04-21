@@ -75,6 +75,34 @@ export async function sendChangeNotification(input: {
   });
 }
 
+export async function sendAutoPauseNotification(input: {
+  to: string;
+  label: string;
+  url: string;
+  lastError: string;
+  failures: number;
+  watchId: string;
+}) {
+  if (!resend) {
+    console.warn("[email] RESEND_API_KEY not set, skipping auto-pause email");
+    return;
+  }
+  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const subject = `Watch paused: ${input.label}`;
+  const html = `
+<!doctype html>
+<html><body style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#0a0a0a;max-width:560px;margin:0 auto;padding:24px">
+  <h2 style="margin:0 0 8px">${escape(input.label)}</h2>
+  <p style="margin:0 0 16px;color:#525252">This watch failed ${input.failures} times in a row and has been paused.</p>
+  <p style="margin:0 0 8px;color:#737373;font-size:13px">Last error</p>
+  <pre style="margin:0 0 16px;padding:12px;background:#fafafa;border:1px solid #e5e5e5;border-radius:6px;white-space:pre-wrap;font-size:12px">${escape(input.lastError)}</pre>
+  <p style="margin:16px 0"><a href="${escape(appUrl)}/watches/${input.watchId}" style="display:inline-block;background:#eabf43;color:#0a0a0a;padding:8px 14px;border-radius:6px;text-decoration:none;font-weight:500">Fix and resume</a></p>
+  <p style="margin:8px 0 0;color:#a3a3a3;font-size:12px">Page: <a href="${escape(input.url)}" style="color:#737373">${escape(input.url)}</a></p>
+</body></html>`;
+  const text = `Watch paused: ${input.label}\n\nThis watch failed ${input.failures} times in a row and has been paused.\n\nLast error:\n${input.lastError}\n\nFix and resume: ${appUrl}/watches/${input.watchId}\nPage: ${input.url}\n`;
+  await resend.emails.send({ from, to: input.to, subject, html, text });
+}
+
 function escape(s: string): string {
   return s
     .replace(/&/g, "&amp;")

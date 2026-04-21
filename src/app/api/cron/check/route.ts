@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
-import { fetchAndExtract } from "@/lib/extract";
-import { sendChangeNotification } from "@/lib/email";
-import { evaluate, type Condition, type ConditionType } from "@/lib/condition";
+import { processWatch } from "@/lib/check-watch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
+
+const CHECK_LOG_TTL_DAYS = 30;
 
 function checkAuth(req: NextRequest): { ok: true } | { ok: false; status: number; msg: string } {
   const secret = process.env.CRON_SECRET;
@@ -23,103 +23,14 @@ function checkAuth(req: NextRequest): { ok: true } | { ok: false; status: number
   return { ok: true };
 }
 
-async function processWatch(watch: {
-  id: string;
-  url: string;
-  selector: string;
-  label: string;
-  notifyEmail: string;
-  lastValue: string | null;
-  lastHash: string | null;
-  imageUrl: string | null;
-  faviconUrl: string | null;
-  conditionType: string;
-  conditionValue: string | null;
-}): Promise<"changed" | "same" | "error"> {
-  const t0 = Date.now();
-  const result = await fetchAndExtract(watch.url, watch.selector);
-  const durationMs = Date.now() - t0;
-
-  if (!result.ok) {
-    await db.$transaction([
-      db.watch.update({
-        where: { id: watch.id },
-        data: { lastCheckedAt: new Date(), lastError: result.error },
-      }),
-      db.check.create({
-        data: { watchId: watch.id, status: "error", error: result.error, durationMs },
-      }),
-    ]);
-    return "error";
-  }
-  if (watch.lastHash === result.hash) {
-    await db.$transaction([
-      db.watch.update({
-        where: { id: watch.id },
-        data: {
-          lastCheckedAt: new Date(),
-          lastError: null,
-          imageUrl: result.imageUrl === watch.imageUrl ? undefined : result.imageUrl,
-          faviconUrl: result.faviconUrl === watch.faviconUrl ? undefined : result.faviconUrl,
-        },
-      }),
-      db.check.create({
-        data: { watchId: watch.id, status: "same", value: result.value, durationMs },
-      }),
-    ]);
-    return "same";
-  }
-  if (watch.lastHash !== null && watch.lastValue !== null) {
-    await db.change.create({
-      data: {
-        watchId: watch.id,
-        oldValue: watch.lastValue,
-        newValue: result.value,
-      },
-    });
-    const cond: Condition = {
-      type: watch.conditionType as ConditionType,
-      value: watch.conditionValue,
-    };
-    const shouldEmail =
-      cond.type === "change"
-        ? true
-        : !evaluate(watch.lastValue, cond) && evaluate(result.value, cond);
-    if (shouldEmail) {
-      try {
-        await sendChangeNotification({
-          to: watch.notifyEmail,
-          label: watch.label,
-          url: watch.url,
-          oldValue: watch.lastValue,
-          newValue: result.value,
-          watchId: watch.id,
-        });
-      } catch (e) {
-        console.error("[cron] email send failed", e);
-      }
-    }
-  }
-  await db.$transaction([
-    db.watch.update({
-      where: { id: watch.id },
-      data: {
-        lastCheckedAt: new Date(),
-        lastValue: result.value,
-        lastHash: result.hash,
-        lastError: null,
-        imageUrl: result.imageUrl,
-        faviconUrl: result.faviconUrl,
-      },
-    }),
-    db.check.create({
-      data: { watchId: watch.id, status: "changed", value: result.value, durationMs },
-    }),
-  ]);
-  return "changed";
+async function cleanupOldChecks() {
+  const cutoff = new Date(Date.now() - CHECK_LOG_TTL_DAYS * 24 * 60 * 60 * 1000);
+  const res = await db.check.deleteMany({ where: { checkedAt: { lt: cutoff } } });
+  return res.count;
 }
 
 async function runChecks() {
+  const purged = await cleanupOldChecks();
   const all = await db.watch.findMany({ where: { isActive: true } });
   const now = Date.now();
   const due = all.filter((w) => {
@@ -140,7 +51,7 @@ async function runChecks() {
       else errors++;
     }
   }
-  return { active: all.length, checked: due.length, changed, same, errors };
+  return { active: all.length, checked: due.length, changed, same, errors, purged };
 }
 
 export async function POST(req: NextRequest) {
