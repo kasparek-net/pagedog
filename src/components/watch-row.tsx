@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Countdown } from "./countdown";
 import { shortenUrl } from "@/lib/format";
@@ -24,11 +24,26 @@ export function WatchRow({ watch }: { watch: Watch }) {
   const router = useRouter();
   const [active, setActive] = useState(watch.isActive);
   const [pending, startTransition] = useTransition();
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const lastMs = watch.lastCheckedAt ? new Date(watch.lastCheckedAt).getTime() : null;
-  const dueMs = lastMs !== null ? lastMs + watch.intervalMinutes * 60_000 : Date.now();
-  const cronTickMs = Math.ceil(Date.now() / (15 * 60_000)) * (15 * 60_000);
+  const dueMs = lastMs !== null ? lastMs + watch.intervalMinutes * 60_000 : (now ?? 0);
+  const cronTickMs =
+    now !== null ? Math.ceil(now / (15 * 60_000)) * (15 * 60_000) : 0;
   const nextMs = Math.max(dueMs, cronTickMs);
+
+  const progress =
+    !active || lastMs === null || now === null
+      ? 0
+      : Math.max(0, Math.min(1.1, (now - lastMs) / Math.max(1, nextMs - lastMs)));
+
+  const heat = bucketForProgress(progress);
 
   async function toggle(e: React.MouseEvent) {
     e.preventDefault();
@@ -50,7 +65,9 @@ export function WatchRow({ watch }: { watch: Watch }) {
   }
 
   return (
-    <li className="relative rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-700 transition">
+    <li
+      className={`relative rounded-xl border transition-colors duration-700 ${HEAT_CLASSES[heat]} hover:border-neutral-300 dark:hover:border-neutral-700`}
+    >
       <Link href={`/watches/${watch.id}`} className="block px-4 py-3 pr-14">
         <div className="sm:flex sm:items-center sm:justify-between gap-4">
           <div className="min-w-0 flex items-center gap-3">
@@ -74,18 +91,18 @@ export function WatchRow({ watch }: { watch: Watch }) {
               </div>
             </div>
           </div>
-          <div className="mt-2 sm:mt-0 sm:text-right text-xs text-neutral-500 shrink-0">
-            <div>
+          <div className="mt-2 sm:mt-0 sm:text-right shrink-0">
+            {active && (
+              <div className="text-xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-100 leading-tight">
+                <Countdown targetMs={nextMs} prefix="" overdue="any second" />
+              </div>
+            )}
+            <div className="text-xs text-neutral-500 mt-0.5">
+              {active && "next scan · "}
               {watch.changeCount} {watch.changeCount === 1 ? "change" : "changes"}
-              {active && (
-                <>
-                  {" · next scan "}
-                  <Countdown targetMs={nextMs} prefix="in" overdue="any second" />
-                </>
-              )}
             </div>
             {watch.lastValue && (
-              <div className="font-mono text-neutral-700 dark:text-neutral-300 truncate max-w-xs">
+              <div className="font-mono text-xs text-neutral-700 dark:text-neutral-300 truncate max-w-xs mt-0.5">
                 {watch.lastValue}
               </div>
             )}
@@ -105,6 +122,26 @@ export function WatchRow({ watch }: { watch: Watch }) {
     </li>
   );
 }
+
+type Heat = "fresh" | "warm" | "hot" | "due";
+
+function bucketForProgress(p: number): Heat {
+  if (p >= 1) return "due";
+  if (p >= 0.85) return "hot";
+  if (p >= 0.6) return "warm";
+  return "fresh";
+}
+
+const HEAT_CLASSES: Record<Heat, string> = {
+  fresh:
+    "border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900",
+  warm:
+    "border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30",
+  hot:
+    "border-amber-300 dark:border-amber-800/80 bg-amber-100 dark:bg-amber-900/40",
+  due:
+    "border-brand dark:border-brand/70 bg-brand/20 dark:bg-brand/15",
+};
 
 function Thumbnail({
   imageUrl,
