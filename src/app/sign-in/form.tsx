@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type State =
@@ -11,7 +10,6 @@ type State =
   | { status: "error"; error: string };
 
 export default function SignInForm() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [state, setState] = useState<State>({ status: "idle" });
@@ -54,8 +52,7 @@ export default function SignInForm() {
         setState({ status: "error", error: j.error ?? `HTTP ${res.status}` });
         return;
       }
-      router.push("/");
-      router.refresh();
+      window.location.assign("/");
     } catch (err) {
       setState({ status: "error", error: err instanceof Error ? err.message : "Failed" });
     }
