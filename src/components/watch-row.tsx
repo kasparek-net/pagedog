@@ -135,15 +135,15 @@ function bucketForProgress(p: number): Heat {
 
 const HEAT_CLASSES: Record<Heat, string> = {
   cold:
-    "border-sky-200 dark:border-sky-900/60 bg-sky-50 dark:bg-sky-950/30",
+    "border-brand/20 dark:border-brand/15 bg-brand/[0.04] dark:bg-brand/[0.04]",
   fresh:
-    "border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900",
+    "border-brand/30 dark:border-brand/25 bg-brand/10 dark:bg-brand/[0.08]",
   warm:
-    "border-amber-300 dark:border-amber-800/70 bg-amber-100 dark:bg-amber-950/50",
+    "border-brand/50 dark:border-brand/40 bg-brand/20 dark:bg-brand/15",
   hot:
-    "border-orange-400 dark:border-orange-700 bg-orange-200 dark:bg-orange-900/60",
+    "border-brand/70 dark:border-brand/60 bg-brand/30 dark:bg-brand/20",
   due:
-    "border-brand dark:border-brand bg-brand/40 dark:bg-brand/25",
+    "border-brand dark:border-brand bg-brand/50 dark:bg-brand/30",
 };
 
 function Thumbnail({
