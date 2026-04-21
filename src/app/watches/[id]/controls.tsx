@@ -31,6 +31,7 @@ export default function WatchControls({
   const [interval, setIntervalValue] = useState(initialInterval);
   const [conditionType, setConditionType] = useState<ConditionType>(initialConditionType as ConditionType);
   const [conditionValue, setConditionValue] = useState(initialConditionValue ?? "");
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   async function patch(data: Record<string, unknown>) {
     setBusy(true);
@@ -44,6 +45,39 @@ export default function WatchControls({
     } finally {
       setBusy(false);
     }
+  }
+
+  const labelTrim = label.trim();
+  const emailTrim = email.trim();
+  const condValueTrim = conditionValue.trim();
+  const condOpt = optionFor(conditionType);
+
+  const dirty =
+    labelTrim !== initialLabel.trim() ||
+    emailTrim !== (initialEmail ?? "").trim() ||
+    interval !== initialInterval ||
+    conditionType !== (initialConditionType as ConditionType) ||
+    (condOpt.needsValue ? condValueTrim : "") !== (initialConditionValue ?? "").trim();
+
+  const valid =
+    labelTrim.length > 0 &&
+    /.+@.+\..+/.test(emailTrim) &&
+    (!condOpt.needsValue ||
+      (condValueTrim.length > 0 &&
+        (conditionType !== "regex" || isValidRegex(condValueTrim)) &&
+        (condOpt.valueKind !== "number" || Number.isFinite(Number(condValueTrim)))));
+
+  async function save() {
+    if (!dirty || !valid) return;
+    setSaveMsg(null);
+    await patch({
+      label: labelTrim,
+      notifyEmail: emailTrim,
+      intervalMinutes: interval,
+      conditionType,
+      conditionValue: condOpt.needsValue ? condValueTrim : null,
+    });
+    setSaveMsg("saved");
   }
 
   async function remove() {
@@ -86,14 +120,20 @@ export default function WatchControls({
     }
   }
 
+  function markDirty() {
+    if (saveMsg) setSaveMsg(null);
+  }
+
   return (
     <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 space-y-5">
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label="Label">
           <input
             value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            onBlur={() => label !== initialLabel && patch({ label })}
+            onChange={(e) => {
+              setLabel(e.target.value);
+              markDirty();
+            }}
             placeholder="Label"
             className="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand"
           />
@@ -102,8 +142,10 @@ export default function WatchControls({
           <input
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onBlur={() => email !== initialEmail && patch({ notifyEmail: email })}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              markDirty();
+            }}
             placeholder="Email"
             className="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand"
           />
@@ -115,7 +157,7 @@ export default function WatchControls({
           disabled={busy}
           onChange={(v) => {
             setIntervalValue(v);
-            patch({ intervalMinutes: v });
+            markDirty();
           }}
         />
       </Field>
@@ -124,27 +166,29 @@ export default function WatchControls({
         value={conditionValue}
         onTypeChange={(t) => {
           setConditionType(t);
-          const opt = optionFor(t);
-          if (!opt.needsValue) {
-            setConditionValue("");
-            patch({ conditionType: t, conditionValue: null });
-          }
+          if (!optionFor(t).needsValue) setConditionValue("");
+          markDirty();
         }}
         onValueChange={(v) => {
           setConditionValue(v);
-          const opt = optionFor(conditionType);
-          const valid =
-            v.trim().length > 0 &&
-            (conditionType !== "regex" || isValidRegex(v.trim())) &&
-            (opt.valueKind !== "number" || Number.isFinite(Number(v)));
-          if (valid) patch({ conditionType, conditionValue: v.trim() });
+          markDirty();
         }}
       />
       <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-800">
         <button
+          disabled={busy || !dirty || !valid}
+          onClick={save}
+          className="rounded-md bg-brand text-black px-3 py-1.5 text-sm font-medium hover:bg-brand-dark disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {busy ? "Saving…" : "Save"}
+        </button>
+        {saveMsg && !dirty && (
+          <span className="text-xs text-neutral-500">{saveMsg}</span>
+        )}
+        <button
           disabled={checking}
           onClick={checkNow}
-          className="rounded-md bg-brand text-black px-3 py-1.5 text-sm font-medium hover:bg-brand-dark disabled:opacity-50"
+          className="rounded-md border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-50"
         >
           {checking ? "Checking…" : "Check now"}
         </button>
@@ -170,4 +214,3 @@ export default function WatchControls({
     </div>
   );
 }
-
