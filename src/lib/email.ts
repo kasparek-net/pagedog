@@ -21,10 +21,10 @@ export async function sendMagicLink(input: {
   } catch {
     host = "pagedog";
   }
-  const subject = `Pagedog sign-in code: ${input.code}`;
+  const subject = `🔑 Pagedog sign-in code: ${input.code}`;
   const html = `<!doctype html>
 <html><body style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#0a0a0a;max-width:560px;margin:0 auto;padding:24px">
-  <h2 style="margin:0 0 8px">Sign in to Pagedog</h2>
+  <h2 style="margin:0 0 8px">🔑 Sign in to Pagedog</h2>
   <p style="margin:0 0 16px;color:#525252">Your verification code is:</p>
   <p style="margin:16px 0;font-size:32px;font-weight:600;letter-spacing:4px;text-align:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">${escape(input.code)}</p>
   <p style="margin:0 0 24px;color:#737373;font-size:13px;text-align:center">This code expires in 15 minutes.</p>
@@ -52,11 +52,11 @@ export async function sendChangeNotification(input: {
     return;
   }
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
-  const subject = `Change detected: ${input.label}`;
+  const subject = `🔔 Change detected: ${input.label}`;
   const html = `
 <!doctype html>
 <html><body style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#0a0a0a;max-width:560px;margin:0 auto;padding:24px">
-  <h2 style="margin:0 0 8px">${escape(input.label)}</h2>
+  <h2 style="margin:0 0 8px">🔔 ${escape(input.label)}</h2>
   <p style="margin:0 0 16px;color:#525252">A change was detected on the watched page.</p>
   <table style="width:100%;border-collapse:collapse;margin:16px 0">
     <tr><td style="padding:8px;background:#fafafa;border:1px solid #e5e5e5;width:80px;font-size:12px;color:#737373">Was</td><td style="padding:8px;border:1px solid #e5e5e5">${escape(input.oldValue)}</td></tr>
@@ -88,11 +88,11 @@ export async function sendSelectorGoneNotification(input: {
     return;
   }
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
-  const subject = `Page changed: ${input.label}`;
+  const subject = `⚠️ Page changed: ${input.label}`;
   const html = `
 <!doctype html>
 <html><body style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#0a0a0a;max-width:560px;margin:0 auto;padding:24px">
-  <h2 style="margin:0 0 8px">${escape(input.label)}</h2>
+  <h2 style="margin:0 0 8px">⚠️ ${escape(input.label)}</h2>
   <p style="margin:0 0 16px;color:#525252">The element we were tracking is no longer on the page — it looks like the page was redesigned or the content was removed. The watch has been paused.</p>
   <table style="width:100%;border-collapse:collapse;margin:16px 0">
     <tr><td style="padding:8px;background:#fafafa;border:1px solid #e5e5e5;width:80px;font-size:12px;color:#737373">Last seen</td><td style="padding:8px;border:1px solid #e5e5e5">${escape(input.lastValue)}</td></tr>
@@ -118,11 +118,11 @@ export async function sendAutoPauseNotification(input: {
     return;
   }
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
-  const subject = `Watch paused: ${input.label}`;
+  const subject = `⏸️ Watch paused: ${input.label}`;
   const html = `
 <!doctype html>
 <html><body style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#0a0a0a;max-width:560px;margin:0 auto;padding:24px">
-  <h2 style="margin:0 0 8px">${escape(input.label)}</h2>
+  <h2 style="margin:0 0 8px">⏸️ ${escape(input.label)}</h2>
   <p style="margin:0 0 16px;color:#525252">This watch failed ${input.failures} times in a row and has been paused.</p>
   <p style="margin:0 0 8px;color:#737373;font-size:13px">Last error</p>
   <pre style="margin:0 0 16px;padding:12px;background:#fafafa;border:1px solid #e5e5e5;border-radius:6px;white-space:pre-wrap;font-size:12px">${escape(input.lastError)}</pre>
