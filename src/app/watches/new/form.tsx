@@ -16,6 +16,7 @@ type TestState =
 export default function NewWatchForm({ defaultEmail }: { defaultEmail: string }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
+  const [loadedUrl, setLoadedUrl] = useState("");
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -46,13 +47,13 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
   }, []);
 
   useEffect(() => {
-    if (!selector || !url || !previewHtml) return;
+    if (!selector || !loadedUrl || !previewHtml) return;
     if (test.status === "ok" && test.value === pickedText && pickedText) return;
     const handle = setTimeout(async () => {
       setTest({ status: "loading" });
       try {
         const res = await fetch(
-          `/api/preview?url=${encodeURIComponent(url)}&mode=test&selector=${encodeURIComponent(selector)}`,
+          `/api/preview?url=${encodeURIComponent(loadedUrl)}&mode=test&selector=${encodeURIComponent(selector)}`,
         );
         const j = await res.json();
         if (j.ok) setTest({ status: "ok", value: j.value });
@@ -64,7 +65,7 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
     return () => clearTimeout(handle);
     // `test` intentionally excluded — it's mutated inside; including would loop on error transitions.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selector, url, previewHtml, pickedText]);
+  }, [selector, loadedUrl, previewHtml, pickedText]);
 
   async function loadPreview(e: React.FormEvent) {
     e.preventDefault();
@@ -83,6 +84,7 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
       }
       const html = await res.text();
       setPreviewHtml(html);
+      setLoadedUrl(url);
       try {
         const u = new URL(url);
         if (!label) setLabel(u.hostname.replace(/^www\./, ""));
@@ -104,7 +106,7 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           label,
-          url,
+          url: loadedUrl,
           selector,
           notifyEmail: email,
           intervalMinutes,
