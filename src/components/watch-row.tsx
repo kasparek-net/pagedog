@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Countdown } from "./countdown";
-import { shortenUrl } from "@/lib/format";
+import { intervalShort, shortenUrl } from "@/lib/format";
 
 type Watch = {
   id: string;
@@ -99,6 +99,7 @@ export function WatchRow({ watch }: { watch: Watch }) {
             )}
             <div className="text-xs text-neutral-500 mt-0.5">
               {active && "next scan · "}
+              every {intervalShort(watch.intervalMinutes)} ·{" "}
               {watch.changeCount} {watch.changeCount === 1 ? "change" : "changes"}
             </div>
             {watch.lastValue && (

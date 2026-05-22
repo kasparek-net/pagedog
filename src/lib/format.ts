@@ -12,6 +12,16 @@ export function intervalLabel(minutes: number): string {
   return INTERVAL_OPTIONS.find((o) => o.value === minutes)?.label ?? `${minutes} min`;
 }
 
+export function intervalShort(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 1440) {
+    const h = minutes / 60;
+    return Number.isInteger(h) ? `${h}h` : `${h.toFixed(1)}h`;
+  }
+  const d = minutes / 1440;
+  return Number.isInteger(d) ? `${d}d` : `${d.toFixed(1)}d`;
+}
+
 export function shortenUrl(raw: string, maxLen = 60): string {
   try {
     const u = new URL(raw);
