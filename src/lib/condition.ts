@@ -1,3 +1,5 @@
+import { parseNumber } from "@/lib/numeric";
+
 export const CONDITION_TYPES = [
   "change",
   "contains",
@@ -42,10 +44,7 @@ export function isValidRegex(src: string): boolean {
 }
 
 export function extractFirstNumber(text: string): number | null {
-  const m = text.match(/-?\d+(?:[.,]\d+)?/);
-  if (!m) return null;
-  const n = parseFloat(m[0].replace(",", "."));
-  return Number.isFinite(n) ? n : null;
+  return parseNumber(text);
 }
 
 export function evaluate(text: string | null, c: Condition): boolean {

@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Countdown } from "./countdown";
+import { Sparkline } from "./sparkline";
 import { intervalShort, shortenUrl } from "@/lib/format";
+import type { NumericPoint } from "@/lib/numeric";
 
 type Watch = {
   id: string;
@@ -18,6 +20,7 @@ type Watch = {
   imageUrl: string | null;
   faviconUrl: string | null;
   changeCount: number;
+  series: NumericPoint[];
 };
 
 export function WatchRow({ watch }: { watch: Watch }) {
@@ -44,6 +47,7 @@ export function WatchRow({ watch }: { watch: Watch }) {
       : Math.max(0, Math.min(1.1, (now - lastMs) / Math.max(1, nextMs - lastMs)));
 
   const heat = bucketForProgress(progress);
+  const numeric = summarize(watch.series);
 
   async function toggle(e: React.MouseEvent) {
     e.preventDefault();
@@ -92,17 +96,58 @@ export function WatchRow({ watch }: { watch: Watch }) {
             </div>
           </div>
           <div className="mt-2 sm:mt-0 sm:text-right shrink-0">
-            {active && (
-              <div className="text-xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-100 leading-tight">
-                <Countdown targetMs={nextMs} prefix="" overdue="any second" />
-              </div>
+            {numeric ? (
+              <>
+                <div className="flex items-center gap-3 sm:justify-end">
+                  <Sparkline values={numeric.values} title={numeric.rangeTitle} />
+                  <span className="text-xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-100 leading-tight">
+                    {numeric.current}
+                  </span>
+                </div>
+                {(numeric.deltaPct !== null || numeric.isLowest) && (
+                  <div className="mt-0.5 flex items-center gap-1.5 text-xs sm:justify-end">
+                    {numeric.deltaPct !== null && (
+                      <span
+                        className={
+                          numeric.deltaPct < 0
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-red-600 dark:text-red-400"
+                        }
+                        title={`since ${numeric.previous}`}
+                      >
+                        {numeric.deltaPct < 0 ? "↓" : "↑"} {formatPct(numeric.deltaPct)}
+                      </span>
+                    )}
+                    {numeric.isLowest && (
+                      <span className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400">
+                        lowest
+                      </span>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              active && (
+                <div className="text-xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-100 leading-tight">
+                  <Countdown targetMs={nextMs} prefix="" overdue="any second" />
+                </div>
+              )
             )}
             <div className="text-xs text-neutral-500 mt-0.5">
-              {active && "next scan · "}
+              {active && !numeric && "next scan · "}
+              {active && numeric && (
+                <>
+                  next scan{" "}
+                  <span className="inline-flex leading-none align-middle">
+                    <Countdown targetMs={nextMs} prefix="" overdue="any second" />
+                  </span>
+                  {" · "}
+                </>
+              )}
               every {intervalShort(watch.intervalMinutes)} ·{" "}
               {watch.changeCount} {watch.changeCount === 1 ? "change" : "changes"}
             </div>
-            {watch.lastValue && (
+            {!numeric && watch.lastValue && (
               <div className="font-mono text-xs text-neutral-700 dark:text-neutral-300 truncate max-w-xs mt-0.5">
                 {watch.lastValue}
               </div>
@@ -122,6 +167,31 @@ export function WatchRow({ watch }: { watch: Watch }) {
       </button>
     </li>
   );
+}
+
+function summarize(series: NumericPoint[]) {
+  if (series.length === 0) return null;
+  const values = series.map((p) => p.n);
+  const last = values[values.length - 1];
+  const prev = values.length > 1 ? values[values.length - 2] : null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const deltaPct =
+    prev !== null && prev !== 0 && prev !== last ? ((last - prev) / Math.abs(prev)) * 100 : null;
+
+  return {
+    values,
+    current: series[series.length - 1].label,
+    previous: prev !== null ? series[series.length - 2].label : null,
+    deltaPct,
+    isLowest: values.length >= 3 && last === min && min !== max,
+    rangeTitle: `${values.length} values · low ${series[values.indexOf(min)].label} · high ${series[values.indexOf(max)].label}`,
+  };
+}
+
+function formatPct(pct: number): string {
+  const abs = Math.abs(pct);
+  return `${abs < 10 ? abs.toFixed(1) : Math.round(abs)}%`;
 }
 
 type Heat = "cold" | "fresh" | "warm" | "hot" | "due";

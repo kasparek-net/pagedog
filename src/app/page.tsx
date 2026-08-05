@@ -2,8 +2,11 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { getSessionEmail } from "@/lib/session";
 import { WatchRow } from "@/components/watch-row";
+import { buildSeries, isNumericValue } from "@/lib/numeric";
 
 export const dynamic = "force-dynamic";
+
+const SERIES_LIMIT = 30;
 
 export default async function HomePage() {
   const email = await getSessionEmail();
@@ -27,7 +30,14 @@ export default async function HomePage() {
   const watches = await db.watch.findMany({
     where: { userId: email },
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { changes: true } } },
+    include: {
+      _count: { select: { changes: true } },
+      changes: {
+        orderBy: { detectedAt: "desc" },
+        take: SERIES_LIMIT,
+        select: { oldValue: true, newValue: true },
+      },
+    },
   });
 
   return (
@@ -54,6 +64,7 @@ export default async function HomePage() {
             <WatchRow
               key={w.id}
               watch={{
+                series: isNumericValue(w.lastValue) ? seriesFor(w) : [],
                 id: w.id,
                 label: w.label,
                 url: w.url,
@@ -72,4 +83,16 @@ export default async function HomePage() {
       )}
     </div>
   );
+}
+
+function seriesFor(w: {
+  lastValue: string | null;
+  changes: { oldValue: string; newValue: string }[];
+}) {
+  const chronological = [...w.changes].reverse();
+  const values: (string | null)[] = chronological.length
+    ? [chronological[0].oldValue, ...chronological.map((c) => c.newValue)]
+    : [];
+  values.push(w.lastValue);
+  return buildSeries(values);
 }
