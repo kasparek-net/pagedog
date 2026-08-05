@@ -35,6 +35,47 @@ export function isNumericValue(text: string | null): boolean {
 
 export type NumericPoint = { n: number; label: string };
 
+// `changes` newest first, as stored; the resulting series runs oldest to newest
+// and always ends at the watch's current value.
+export function seriesFromChanges(
+  changes: { oldValue: string; newValue: string }[],
+  lastValue: string | null,
+): NumericPoint[] {
+  if (!isNumericValue(lastValue)) return [];
+  const chronological = [...changes].reverse();
+  const values: (string | null)[] = chronological.length
+    ? [chronological[0].oldValue, ...chronological.map((c) => c.newValue)]
+    : [];
+  values.push(lastValue);
+  return buildSeries(values);
+}
+
+export function summarizeSeries(series: NumericPoint[]) {
+  if (series.length === 0) return null;
+  const values = series.map((p) => p.n);
+  const last = values[values.length - 1];
+  const prev = values.length > 1 ? values[values.length - 2] : null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+
+  return {
+    values,
+    current: series[series.length - 1].label,
+    oldest: series[0].label,
+    previous: prev !== null ? series[series.length - 2].label : null,
+    lowest: series[values.indexOf(min)].label,
+    highest: series[values.indexOf(max)].label,
+    deltaPct:
+      prev !== null && prev !== 0 && prev !== last ? ((last - prev) / Math.abs(prev)) * 100 : null,
+    isLowest: values.length >= 3 && last === min && min !== max,
+  };
+}
+
+export function formatDeltaPct(pct: number): string {
+  const abs = Math.abs(pct);
+  return `${abs < 10 ? abs.toFixed(1) : Math.round(abs)}%`;
+}
+
 export function buildSeries(values: (string | null)[]): NumericPoint[] {
   const points: NumericPoint[] = [];
   for (const v of values) {

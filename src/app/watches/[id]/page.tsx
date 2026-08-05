@@ -5,6 +5,8 @@ import { getSessionEmail } from "@/lib/session";
 import { intervalLabel, shortenUrl } from "@/lib/format";
 import { conditionLabel, type ConditionType } from "@/lib/condition";
 import { Countdown } from "@/components/countdown";
+import { ValueChart } from "@/components/value-chart";
+import { formatDeltaPct, seriesFromChanges, summarizeSeries } from "@/lib/numeric";
 import WatchControls from "./controls";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +39,7 @@ export default async function WatchDetail({
     : Date.now();
   const cronTickMs = Math.ceil(Date.now() / (15 * 60_000)) * (15 * 60_000);
   const nextMs = Math.max(dueMs, cronTickMs);
+  const numeric = summarizeSeries(seriesFromChanges(changes, watch.lastValue));
 
   return (
     <div className="space-y-6">
@@ -96,6 +99,47 @@ export default async function WatchDetail({
           </div>
         </Box>
       </div>
+
+      {numeric && numeric.values.length >= 2 && (
+        <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 pt-3 pb-2">
+          <div className="flex items-baseline justify-between gap-4">
+            <div className="text-xs uppercase tracking-wide text-neutral-500">
+              Value history
+            </div>
+            <div className="text-xs text-neutral-500 truncate">
+              low {numeric.lowest} · high {numeric.highest}
+            </div>
+          </div>
+          <div className="mt-1 flex items-baseline gap-2.5 flex-wrap">
+            <span className="text-2xl font-semibold tabular-nums">{numeric.current}</span>
+            {numeric.deltaPct !== null && (
+              <span
+                className={`text-sm ${
+                  numeric.deltaPct < 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-red-600 dark:text-red-400"
+                }`}
+                title={`since ${numeric.previous}`}
+              >
+                {numeric.deltaPct < 0 ? "↓" : "↑"} {formatDeltaPct(numeric.deltaPct)}
+              </span>
+            )}
+            {numeric.isLowest && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400">
+                lowest
+              </span>
+            )}
+          </div>
+          <div className="mt-3">
+            <ValueChart values={numeric.values} />
+          </div>
+          <div className="flex justify-between gap-3 text-xs text-neutral-500">
+            <span className="truncate">{numeric.oldest}</span>
+            <span className="shrink-0">{numeric.values.length} values</span>
+            <span className="truncate">{numeric.current}</span>
+          </div>
+        </div>
+      )}
 
       <WatchControls
         id={watch.id}

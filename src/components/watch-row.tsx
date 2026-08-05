@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Countdown } from "./countdown";
 import { Sparkline } from "./sparkline";
 import { intervalShort, shortenUrl } from "@/lib/format";
-import type { NumericPoint } from "@/lib/numeric";
+import { formatDeltaPct, summarizeSeries, type NumericPoint } from "@/lib/numeric";
 
 type Watch = {
   id: string;
@@ -47,7 +47,7 @@ export function WatchRow({ watch }: { watch: Watch }) {
       : Math.max(0, Math.min(1.1, (now - lastMs) / Math.max(1, nextMs - lastMs)));
 
   const heat = bucketForProgress(progress);
-  const numeric = summarize(watch.series);
+  const numeric = summarizeSeries(watch.series);
 
   async function toggle(e: React.MouseEvent) {
     e.preventDefault();
@@ -99,7 +99,10 @@ export function WatchRow({ watch }: { watch: Watch }) {
             {numeric ? (
               <>
                 <div className="flex items-center gap-3 sm:justify-end">
-                  <Sparkline values={numeric.values} title={numeric.rangeTitle} />
+                  <Sparkline
+                    values={numeric.values}
+                    title={`${numeric.values.length} values · low ${numeric.lowest} · high ${numeric.highest}`}
+                  />
                   <span className="text-xl font-semibold tabular-nums text-neutral-900 dark:text-neutral-100 leading-tight">
                     {numeric.current}
                   </span>
@@ -115,7 +118,7 @@ export function WatchRow({ watch }: { watch: Watch }) {
                         }
                         title={`since ${numeric.previous}`}
                       >
-                        {numeric.deltaPct < 0 ? "↓" : "↑"} {formatPct(numeric.deltaPct)}
+                        {numeric.deltaPct < 0 ? "↓" : "↑"} {formatDeltaPct(numeric.deltaPct)}
                       </span>
                     )}
                     {numeric.isLowest && (
@@ -167,31 +170,6 @@ export function WatchRow({ watch }: { watch: Watch }) {
       </button>
     </li>
   );
-}
-
-function summarize(series: NumericPoint[]) {
-  if (series.length === 0) return null;
-  const values = series.map((p) => p.n);
-  const last = values[values.length - 1];
-  const prev = values.length > 1 ? values[values.length - 2] : null;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const deltaPct =
-    prev !== null && prev !== 0 && prev !== last ? ((last - prev) / Math.abs(prev)) * 100 : null;
-
-  return {
-    values,
-    current: series[series.length - 1].label,
-    previous: prev !== null ? series[series.length - 2].label : null,
-    deltaPct,
-    isLowest: values.length >= 3 && last === min && min !== max,
-    rangeTitle: `${values.length} values · low ${series[values.indexOf(min)].label} · high ${series[values.indexOf(max)].label}`,
-  };
-}
-
-function formatPct(pct: number): string {
-  const abs = Math.abs(pct);
-  return `${abs < 10 ? abs.toFixed(1) : Math.round(abs)}%`;
 }
 
 type Heat = "cold" | "fresh" | "warm" | "hot" | "due";

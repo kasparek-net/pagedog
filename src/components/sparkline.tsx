@@ -13,13 +13,13 @@ export function Sparkline({
 
   const min = Math.min(...values);
   const max = Math.max(...values);
-  const span = max - min || 1;
+  const flat = max === min;
   const pad = 3;
   const usable = height - pad * 2;
 
   const points = values.map((v, i) => {
     const x = (i / (values.length - 1)) * width;
-    const y = pad + (1 - (v - min) / span) * usable;
+    const y = flat ? height / 2 : pad + (1 - (v - min) / (max - min)) * usable;
     return [x, y] as const;
   });
 
