@@ -12,6 +12,7 @@ const PUBLIC_PREFIXES = [
   "/sign-in",
   "/api/auth/",
   "/api/cron/",
+  "/api/agent/",
   "/icon",
   "/apple-icon",
   "/opengraph-image",

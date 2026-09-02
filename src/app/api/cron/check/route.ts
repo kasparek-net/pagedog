@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { processWatch } from "@/lib/check-watch";
+import { isAgentHost } from "@/lib/agent-hosts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +35,8 @@ async function runChecks() {
   const all = await db.watch.findMany({ where: { isActive: true } });
   const now = Date.now();
   const due = all.filter((w) => {
+    // Hosts that block our IP are handled by the local agent instead.
+    if (isAgentHost(w.url)) return false;
     if (!w.lastCheckedAt) return true;
     const elapsed = now - w.lastCheckedAt.getTime();
     return elapsed >= w.intervalMinutes * 60_000 - 30_000;

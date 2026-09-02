@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { fetchAndExtract } from "@/lib/extract";
+import { fetchAndExtract, type ExtractResult } from "@/lib/extract";
 import {
   sendChangeNotification,
   sendAutoPauseNotification,
@@ -28,8 +28,16 @@ export type ProcessResult = "changed" | "same" | "error";
 export async function processWatch(watch: ProcessInput): Promise<ProcessResult> {
   const t0 = Date.now();
   const result = await fetchAndExtract(watch.url, watch.selector);
-  const durationMs = Date.now() - t0;
+  return applyResult(watch, result, Date.now() - t0);
+}
 
+// Split out so the local agent can report a page it fetched itself: extraction
+// and every side effect still happen here, the agent only supplies the HTML.
+export async function applyResult(
+  watch: ProcessInput,
+  result: ExtractResult,
+  durationMs: number,
+): Promise<ProcessResult> {
   if (!result.ok) {
     const isSelectorGone =
       result.kind === "selector" && watch.lastHash !== null && watch.lastValue !== null;
