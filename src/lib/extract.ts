@@ -48,7 +48,10 @@ async function requestOnce(
   }
   if (!impit) {
     const { Impit } = await import("impit");
-    impit = new Impit({ browser: "chrome" });
+    // Cloudflare scores datacenter IPs as bots regardless of fingerprint, so a
+    // residential proxy is needed on top of impersonation when deployed.
+    const proxyUrl = process.env.FETCH_PROXY_URL;
+    impit = new Impit({ browser: "chrome", ...(proxyUrl ? { proxyUrl } : {}) });
   }
   return impit.fetch(url, {
     headers: { "Accept-Language": "cs,en;q=0.9" },
