@@ -18,29 +18,78 @@ export type ExtractResult =
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_REDIRECTS = 5;
 
+const BOT_HEADERS: Record<string, string> = {
+  "User-Agent": "PagedogBot/1.0 (+https://github.com/kasparek-net/pagedog)",
+  Accept: "text/html,application/xhtml+xml",
+  "Accept-Language": "cs,en;q=0.9",
+};
+
+type MinimalResponse = {
+  status: number;
+  headers: { get(name: string): string | null };
+  body: ReadableStream<Uint8Array> | null;
+  text(): Promise<string>;
+};
+
+let impit: import("impit").Impit | null = null;
+
+async function requestOnce(
+  url: string,
+  impersonate: boolean,
+  signal: AbortSignal,
+): Promise<MinimalResponse> {
+  if (!impersonate) {
+    return fetch(url, {
+      headers: BOT_HEADERS,
+      redirect: "manual",
+      signal,
+      cache: "no-store",
+    });
+  }
+  if (!impit) {
+    const { Impit } = await import("impit");
+    impit = new Impit({ browser: "chrome" });
+  }
+  return impit.fetch(url, {
+    headers: { "Accept-Language": "cs,en;q=0.9" },
+    redirect: "manual",
+    signal,
+  });
+}
+
+// Sites behind bot protection (Cloudflare et al.) reject our plain fetch on TLS
+// fingerprint alone. Retry those through a client that impersonates Chrome.
+function isBotBlock(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : "";
+  return msg === "HTTP 403" || msg === "HTTP 429" || msg === "HTTP 503";
+}
+
 export async function fetchHtml(url: string, timeoutMs = 15000): Promise<string> {
+  try {
+    return await fetchHtmlWith(url, timeoutMs, false);
+  } catch (e) {
+    if (!isBotBlock(e)) throw e;
+    return await fetchHtmlWith(url, timeoutMs, true);
+  }
+}
+
+async function fetchHtmlWith(
+  url: string,
+  timeoutMs: number,
+  impersonate: boolean,
+): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     let current = url;
-    let res: Response | null = null;
+    let res: MinimalResponse | null = null;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       const parsed = new URL(current);
       if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
         throw new Error(`Disallowed protocol: ${parsed.protocol}`);
       }
       await assertPublicHost(parsed.hostname);
-      res = await fetch(current, {
-        headers: {
-          "User-Agent":
-            "PagedogBot/1.0 (+https://github.com/kasparek-net/pagedog)",
-          Accept: "text/html,application/xhtml+xml",
-          "Accept-Language": "cs,en;q=0.9",
-        },
-        redirect: "manual",
-        signal: controller.signal,
-        cache: "no-store",
-      });
+      res = await requestOnce(current, impersonate, controller.signal);
       if (res.status >= 300 && res.status < 400) {
         const loc = res.headers.get("location");
         if (!loc) throw new Error("Redirect without Location header");
@@ -53,7 +102,9 @@ export async function fetchHtml(url: string, timeoutMs = 15000): Promise<string>
     if (res.status >= 300 && res.status < 400) {
       throw new Error("Too many redirects");
     }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (res.status < 200 || res.status >= 300) {
+      throw new Error(`HTTP ${res.status}`);
+    }
     const ct = res.headers.get("content-type") ?? "";
     if (!ct.includes("html") && !ct.includes("xml") && !ct.includes("text")) {
       throw new Error(`Unexpected content-type: ${ct}`);
