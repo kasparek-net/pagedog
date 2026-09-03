@@ -63,7 +63,7 @@ async function requestOnce(
 
 // Sites behind bot protection (Cloudflare et al.) reject our plain fetch on TLS
 // fingerprint alone. Retry those through a client that impersonates Chrome.
-function isBotBlock(e: unknown): boolean {
+export function isBotBlock(e: unknown): boolean {
   const msg = e instanceof Error ? e.message : "";
   return msg === "HTTP 403" || msg === "HTTP 429" || msg === "HTTP 503";
 }

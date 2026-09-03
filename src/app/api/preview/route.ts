@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { getSessionEmail } from "@/lib/session";
-import { fetchHtml, extractFromHtml, assertPublicHost } from "@/lib/extract";
+import { fetchHtml, extractFromHtml, assertPublicHost, isBotBlock } from "@/lib/extract";
+import { fetchTrackedPrice, formatTrackedPrice } from "@/lib/price-tracker";
 import { rateLimit } from "@/lib/rate-limit";
 import { PICKER_JS } from "@/lib/picker-source";
 
@@ -56,10 +57,21 @@ export async function GET(req: NextRequest) {
   try {
     html = await fetchHtml(url.toString());
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Fetch failed" },
-      { status: 502 },
-    );
+    const status = e instanceof Error ? e.message : "Fetch failed";
+    // The page cannot be rendered for the picker at all, but a watch on it may
+    // still work through the price tracker, so say so instead of a bare 403.
+    if (isBotBlock(e)) {
+      const tracked = await fetchTrackedPrice(url.toString());
+      return NextResponse.json(
+        {
+          error: tracked.ok
+            ? `${status} — this shop blocks previews, but its price is tracked externally (currently ${formatTrackedPrice(tracked.price)}). Save the watch and it will be checked that way.`
+            : `${status} — this shop blocks previews and no tracked price is available (${tracked.reason}).`,
+        },
+        { status: 502 },
+      );
+    }
+    return NextResponse.json({ error: status }, { status: 502 });
   }
 
   if (mode === "test" && selector) {
