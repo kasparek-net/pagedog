@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { fetchTrackedPrice, formatTrackedPrice } from "@/lib/price-tracker";
 import { createHash } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
@@ -280,6 +281,10 @@ export async function fetchAndExtract(
   try {
     html = await fetchHtml(url);
   } catch (e) {
+    if (isBotBlock(e)) {
+      const tracked = await trackedPriceResult(url);
+      if (tracked) return tracked;
+    }
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Fetch failed",
@@ -287,6 +292,21 @@ export async function fetchAndExtract(
     };
   }
   return extractFromHtml(html, selector, url);
+}
+
+// The page itself is unreachable, so the selector cannot be applied; the price
+// tracker is the only thing left that knows what the shop currently charges.
+async function trackedPriceResult(url: string): Promise<ExtractResult | null> {
+  const price = await fetchTrackedPrice(url);
+  if (price === null) return null;
+  const value = formatTrackedPrice(price);
+  return {
+    ok: true,
+    value,
+    hash: sha256(value),
+    imageUrl: null,
+    faviconUrl: resolveImageUrl("/favicon.ico", url),
+  };
 }
 
 export function sha256(input: string): string {
