@@ -281,32 +281,26 @@ export async function fetchAndExtract(
   try {
     html = await fetchHtml(url);
   } catch (e) {
+    let error = e instanceof Error ? e.message : "Fetch failed";
+    // The page itself is unreachable, so the selector cannot be applied; the
+    // price tracker is the only thing left that knows what the shop charges.
     if (isBotBlock(e)) {
-      const tracked = await trackedPriceResult(url);
-      if (tracked) return tracked;
+      const tracked = await fetchTrackedPrice(url);
+      if (tracked.ok) {
+        const value = formatTrackedPrice(tracked.price);
+        return {
+          ok: true,
+          value,
+          hash: sha256(value),
+          imageUrl: null,
+          faviconUrl: resolveImageUrl("/favicon.ico", url),
+        };
+      }
+      error = `${error} (${tracked.reason})`;
     }
-    return {
-      ok: false,
-      error: e instanceof Error ? e.message : "Fetch failed",
-      kind: "fetch",
-    };
+    return { ok: false, error, kind: "fetch" };
   }
   return extractFromHtml(html, selector, url);
-}
-
-// The page itself is unreachable, so the selector cannot be applied; the price
-// tracker is the only thing left that knows what the shop currently charges.
-async function trackedPriceResult(url: string): Promise<ExtractResult | null> {
-  const price = await fetchTrackedPrice(url);
-  if (price === null) return null;
-  const value = formatTrackedPrice(price);
-  return {
-    ok: true,
-    value,
-    hash: sha256(value),
-    imageUrl: null,
-    faviconUrl: resolveImageUrl("/favicon.ico", url),
-  };
 }
 
 export function sha256(input: string): string {

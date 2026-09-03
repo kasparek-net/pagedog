@@ -6,10 +6,14 @@ const TRACKER_API = "https://api.hlidacshopu.cz/v2/detail";
 
 type PricePoint = { x?: string; y?: number | null };
 
+export type TrackedPrice =
+  | { ok: true; price: number }
+  | { ok: false; reason: string };
+
 export async function fetchTrackedPrice(
   url: string,
   timeoutMs = 10000,
-): Promise<number | null> {
+): Promise<TrackedPrice> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -18,16 +22,18 @@ export async function fetchTrackedPrice(
       signal: controller.signal,
       cache: "no-store",
     });
-    if (!res.ok) return null;
+    if (res.status === 404) return { ok: false, reason: "product not tracked" };
+    if (!res.ok) return { ok: false, reason: `tracker HTTP ${res.status}` };
     const body = await res.json();
     const points: PricePoint[] = body?.data?.currentPrice ?? [];
     for (let i = points.length - 1; i >= 0; i--) {
       const y = points[i]?.y;
-      if (typeof y === "number" && Number.isFinite(y)) return y;
+      if (typeof y === "number" && Number.isFinite(y)) return { ok: true, price: y };
     }
-    return null;
-  } catch {
-    return null;
+    return { ok: false, reason: "tracker has no price yet" };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "request failed";
+    return { ok: false, reason: `tracker unreachable: ${msg}` };
   } finally {
     clearTimeout(timer);
   }
