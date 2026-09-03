@@ -67,6 +67,12 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selector, loadedUrl, previewHtml, pickedText]);
 
+  function setDefaultLabel(u: string) {
+    try {
+      if (!label) setLabel(new URL(u).hostname.replace(/^www\./, ""));
+    } catch {}
+  }
+
   async function loadPreview(e: React.FormEvent) {
     e.preventDefault();
     setLoadingPreview(true);
@@ -80,15 +86,17 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
       if (!res.ok) {
         const j = await res.json().catch(() => ({ error: "Failed to load" }));
         setPreviewError(j.error ?? `HTTP ${res.status}`);
+        // A page we cannot render here can still be watched — the local agent
+        // fetches those from a network the shop accepts — so keep the rest of
+        // the form open for a hand-typed selector.
+        setLoadedUrl(url);
+        setDefaultLabel(url);
         return;
       }
       const html = await res.text();
       setPreviewHtml(html);
       setLoadedUrl(url);
-      try {
-        const u = new URL(url);
-        if (!label) setLabel(u.hostname.replace(/^www\./, ""));
-      } catch {}
+      setDefaultLabel(url);
     } catch (err) {
       setPreviewError(err instanceof Error ? err.message : "Error");
     } finally {
@@ -160,26 +168,39 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
         {previewError && <div className="text-sm text-red-600 mt-2">{previewError}</div>}
       </Section>
 
-      {previewHtml && (
+      {loadedUrl && (
         <>
           <Section
             step={2}
             title="Element"
-            hint="Hover the page below, click what you want to track, then press ✓ Use in the picker."
+            hint={
+              previewHtml
+                ? "Hover the page below, click what you want to track, then press ✓ Use in the picker."
+                : "The page could not be loaded here, so type the CSS selector yourself."
+            }
           >
-            <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden bg-white shadow-sm">
-              <iframe
-                ref={iframeRef}
-                srcDoc={previewHtml}
-                sandbox="allow-scripts"
-                className="w-full bg-white"
-                style={{ height: "calc(100vh - 380px)", minHeight: "600px" }}
-                title="Page preview"
-              />
-            </div>
-            <p className="text-xs text-neutral-500 mt-2">
-              Empty preview? The page is rendered by JavaScript — type the selector by hand.
-            </p>
+            {previewHtml ? (
+              <>
+                <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden bg-white shadow-sm">
+                  <iframe
+                    ref={iframeRef}
+                    srcDoc={previewHtml}
+                    sandbox="allow-scripts"
+                    className="w-full bg-white"
+                    style={{ height: "calc(100vh - 380px)", minHeight: "600px" }}
+                    title="Page preview"
+                  />
+                </div>
+                <p className="text-xs text-neutral-500 mt-2">
+                  Empty preview? The page is rendered by JavaScript — type the selector by hand.
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-neutral-500">
+                Copy the selector from your browser&apos;s dev tools (right-click the element →
+                Inspect). The watch itself is checked elsewhere, so it can still work.
+              </p>
+            )}
             <div className="mt-4 space-y-2">
               <div className="flex items-center gap-2">
                 <input
