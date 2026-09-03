@@ -16,7 +16,7 @@ const CreateSchema = z
     url: z.string().url().max(2000),
     selector: z.string().min(1).max(500),
     notifyEmail: z.string().email().max(200),
-    intervalMinutes: z.number().int().min(15).max(10080).default(60),
+    intervalMinutes: z.number().int().min(1).max(10080).default(60),
     conditionType: z.enum(CONDITION_TYPES).default("change"),
     conditionValue: z.string().max(500).nullable().optional(),
   })

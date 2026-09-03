@@ -11,7 +11,7 @@ const PatchSchema = z
     label: z.string().min(1).max(100).optional(),
     notifyEmail: z.string().email().max(200).optional(),
     isActive: z.boolean().optional(),
-    intervalMinutes: z.number().int().min(15).max(10080).optional(),
+    intervalMinutes: z.number().int().min(1).max(10080).optional(),
     conditionType: z.enum(CONDITION_TYPES).optional(),
     conditionValue: z.string().max(500).nullable().optional(),
   })

@@ -276,6 +276,7 @@ function resolveImageUrl(raw: string | undefined, baseUrl: string): string | nul
 export async function fetchAndExtract(
   url: string,
   selector: string,
+  opts: { priceFallback?: boolean } = {},
 ): Promise<ExtractResult> {
   let html: string;
   try {
@@ -284,7 +285,8 @@ export async function fetchAndExtract(
     let error = e instanceof Error ? e.message : "Fetch failed";
     // The page itself is unreachable, so the selector cannot be applied; the
     // price tracker is the only thing left that knows what the shop charges.
-    if (isBotBlock(e)) {
+    // It only knows prices, so a watch tracking anything else must not get one.
+    if (isBotBlock(e) && opts.priceFallback) {
       const tracked = await fetchTrackedPrice(url);
       if (tracked.ok) {
         const value = formatTrackedPrice(tracked.price);

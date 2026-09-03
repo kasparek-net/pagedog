@@ -6,6 +6,7 @@ import {
   sendSelectorGoneNotification,
 } from "@/lib/email";
 import { evaluate, type Condition, type ConditionType } from "@/lib/condition";
+import { isNumericValue } from "@/lib/numeric";
 
 const AUTO_PAUSE_THRESHOLD = 5;
 
@@ -27,7 +28,9 @@ export type ProcessResult = "changed" | "same" | "error";
 
 export async function processWatch(watch: ProcessInput): Promise<ProcessResult> {
   const t0 = Date.now();
-  const result = await fetchAndExtract(watch.url, watch.selector);
+  const result = await fetchAndExtract(watch.url, watch.selector, {
+    priceFallback: isNumericValue(watch.lastValue),
+  });
   return applyResult(watch, result, Date.now() - t0);
 }
 
