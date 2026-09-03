@@ -4,10 +4,31 @@ import { getSessionEmail } from "@/lib/session";
 import { fetchHtml, extractFromHtml, assertPublicHost, isBotBlock } from "@/lib/extract";
 import { fetchTrackedPrice, formatTrackedPrice } from "@/lib/price-tracker";
 import { rateLimit } from "@/lib/rate-limit";
+import { db } from "@/lib/db";
+import { isAgentHost } from "@/lib/agent-hosts";
 import { PICKER_JS } from "@/lib/picker-source";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+const AGENT_PREVIEW_TIMEOUT_MS = 45_000;
+const AGENT_PREVIEW_POLL_MS = 1_000;
+
+// Hosts the agent owns cannot be fetched here at all, so the page is queued for
+// it and we wait for the HTML to come back.
+async function fetchViaAgent(url: string): Promise<string> {
+  const job = await db.previewJob.create({ data: { url } });
+  const deadline = Date.now() + AGENT_PREVIEW_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, AGENT_PREVIEW_POLL_MS));
+    const current = await db.previewJob.findUnique({ where: { id: job.id } });
+    if (!current?.doneAt) continue;
+    if (current.html) return current.html;
+    throw new Error(current.error ?? "Agent could not fetch the page");
+  }
+  throw new Error("The local agent did not answer in time");
+}
 
 function buildHighlightScript(selector: string): string {
   const safe = JSON.stringify(selector);
@@ -55,7 +76,9 @@ export async function GET(req: NextRequest) {
 
   let html: string;
   try {
-    html = await fetchHtml(url.toString());
+    html = isAgentHost(url.toString())
+      ? await fetchViaAgent(url.toString())
+      : await fetchHtml(url.toString());
   } catch (e) {
     const status = e instanceof Error ? e.message : "Fetch failed";
     // The page cannot be rendered for the picker at all, but a watch on it may

@@ -19,7 +19,17 @@ export async function GET(req: NextRequest) {
     return elapsed >= w.intervalMinutes * 60_000 - 30_000;
   });
 
+  // Previews are interactive, so they ride along on the poll the agent already
+  // makes rather than getting a request of their own.
+  const previewJobs = await db.previewJob.findMany({
+    where: { doneAt: null, createdAt: { gt: new Date(now - 2 * 60_000) } },
+    orderBy: { createdAt: "asc" },
+    take: 3,
+    select: { id: true, url: true },
+  });
+
   return NextResponse.json({
     watches: due.map((w) => ({ id: w.id, url: w.url, selector: w.selector })),
+    previewJobs,
   });
 }

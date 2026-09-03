@@ -68,3 +68,16 @@ model Check {
 
   @@index([watchId, checkedAt])
 }
+
+// A page the server cannot fetch itself, queued for the local agent so the
+// element picker still works on shops that block our datacenter IP.
+model PreviewJob {
+  id        String   @id @default(cuid())
+  url       String
+  html      String?
+  error     String?
+  createdAt DateTime @default(now())
+  doneAt    DateTime?
+
+  @@index([doneAt, createdAt])
+}
