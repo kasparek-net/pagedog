@@ -50,6 +50,12 @@ export default async function RootLayout({
                   >
                     New watch
                   </Link>
+                  <Link
+                    href="/settings"
+                    className="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 hover:underline"
+                  >
+                    Settings
+                  </Link>
                   <span className="text-xs text-neutral-500 hidden sm:inline">
                     {email}
                   </span>

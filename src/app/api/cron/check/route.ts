@@ -5,6 +5,7 @@ import { processWatch } from "@/lib/check-watch";
 import { isDue } from "@/lib/schedule";
 import { agentHealth, markAgentStaleNotified } from "@/lib/agent-status";
 import { sendAgentDownNotification } from "@/lib/email";
+import { pushTo } from "@/lib/push";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,6 +54,14 @@ async function alertIfAgentDown(health: Awaited<ReturnType<typeof agentHealth>>)
     } catch (e) {
       console.error("[cron] agent-down email failed", e);
     }
+  }
+  for (const userId of new Set(agentWatches.map((w) => w.userId))) {
+    await pushTo(userId, {
+      title: "Local agent is down",
+      message: `${hosts.join(", ")} not being checked until it is back.`,
+      priority: 4,
+      tags: ["electric_plug"],
+    });
   }
   await markAgentStaleNotified();
 }

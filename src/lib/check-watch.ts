@@ -8,9 +8,12 @@ import {
 import { evaluate, type Condition, type ConditionType } from "@/lib/condition";
 import { isNumericValue } from "@/lib/numeric";
 import { FAIL_SLOWDOWN_THRESHOLD, effectiveIntervalMinutes } from "@/lib/schedule";
+import { pushTo } from "@/lib/push";
+import { availabilityTone } from "@/lib/product-data";
 
 export type ProcessInput = {
   id: string;
+  userId: string;
   url: string;
   selector: string;
   label: string;
@@ -79,6 +82,13 @@ export async function applyResult(
       } catch (e) {
         console.error("[check-watch] selector-gone email failed", e);
       }
+      await pushTo(watch.userId, {
+        title: `Page changed: ${watch.label}`,
+        message: "The tracked element is no longer on the page. The watch is paused.",
+        click: watch.url,
+        priority: 3,
+        tags: ["warning"],
+      });
     } else if (failStreak === FAIL_SLOWDOWN_THRESHOLD) {
       try {
         await sendFailingNotification({
@@ -93,6 +103,13 @@ export async function applyResult(
       } catch (e) {
         console.error("[check-watch] failing email failed", e);
       }
+      await pushTo(watch.userId, {
+        title: `Watch is failing: ${watch.label}`,
+        message: `${failStreak}× in a row, now checked every ${effectiveIntervalMinutes(watch.intervalMinutes, failStreak)} min. Last error: ${result.error}`,
+        click: watch.url,
+        priority: 2,
+        tags: ["warning"],
+      });
     }
     return "error";
   }
@@ -144,6 +161,14 @@ export async function applyResult(
       } catch (e) {
         console.error("[check-watch] email send failed", e);
       }
+      const tone = watch.selector === "@availability" ? availabilityTone(result.value) : null;
+      await pushTo(watch.userId, {
+        title: watch.label,
+        message: `${watch.lastValue} → ${result.value}`,
+        click: watch.url,
+        priority: tone === "good" ? 4 : 3,
+        tags: [tone === "good" ? "white_check_mark" : tone === "bad" ? "x" : "bell"],
+      });
     }
   }
   await db.$transaction([

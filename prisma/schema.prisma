@@ -91,3 +91,10 @@ model AgentStatus {
   lastSeenAt      DateTime
   staleNotifiedAt DateTime?
 }
+
+// Per-person preferences, keyed by the sign-in email (there is no user table).
+model UserSettings {
+  email     String   @id
+  ntfyTopic String?
+  updatedAt DateTime @updatedAt
+}
