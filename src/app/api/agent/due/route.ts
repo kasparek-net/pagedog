@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { checkAgentAuth } from "@/lib/agent-auth";
 import { touchAgent } from "@/lib/agent-status";
 import { isDue } from "@/lib/schedule";
+import { AGENT_VERSION } from "@/lib/agent-version";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,5 +39,6 @@ export async function GET(req: NextRequest) {
     watches: due.map((w) => ({ id: w.id, url: w.url, selector: w.selector })),
     previewJobs,
     pollMs: previewJobs.length > 0 || recentPreview > 0 ? FAST_POLL_MS : SLOW_POLL_MS,
+    agentVersion: AGENT_VERSION,
   });
 }
