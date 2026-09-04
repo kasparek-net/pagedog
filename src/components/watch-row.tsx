@@ -20,6 +20,8 @@ type Watch = {
   lastValue: string | null;
   lastError: string | null;
   lastCheckedAt: string | null;
+  snoozedUntil: string | null;
+  lastCheckedVia: string | null;
   imageUrl: string | null;
   faviconUrl: string | null;
   changeCount: number;
@@ -37,6 +39,8 @@ export function WatchRow({ watch }: { watch: Watch }) {
   const cronTickMs =
     now !== null ? Math.ceil(now / (15 * 60_000)) * (15 * 60_000) : 0;
   const nextMs = Math.max(dueMs, cronTickMs);
+  const snoozedMs = watch.snoozedUntil ? new Date(watch.snoozedUntil).getTime() : null;
+  const snoozed = snoozedMs !== null && now !== null && snoozedMs > now;
 
   const progress =
     !active || lastMs === null || now === null
@@ -134,8 +138,9 @@ export function WatchRow({ watch }: { watch: Watch }) {
               )
             )}
             <div className="text-xs text-neutral-500 mt-0.5">
-              {active && !numeric && "next scan · "}
-              {active && numeric && (
+              {active && snoozed && `snoozed until ${new Date(snoozedMs!).toLocaleDateString("cs-CZ")} · `}
+              {active && !snoozed && !numeric && "next scan · "}
+              {active && !snoozed && numeric && (
                 <>
                   next scan{" "}
                   <span className="inline-flex leading-none align-middle">
@@ -146,6 +151,7 @@ export function WatchRow({ watch }: { watch: Watch }) {
               )}
               every {intervalShort(watch.intervalMinutes)} ·{" "}
               {watch.changeCount} {watch.changeCount === 1 ? "change" : "changes"}
+              {watch.lastCheckedVia === "agent" && " · via agent"}
             </div>
             {!numeric && watch.lastValue && watch.selector === "@availability" && (
               <div className="mt-1">

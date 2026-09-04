@@ -27,6 +27,8 @@ model Watch {
   conditionValue  String?
   failStreak    Int       @default(0)
   cloudBlocked  Boolean   @default(false)
+  snoozedUntil  DateTime?
+  lastCheckedVia String?  // "agent" | "cloud"
   createdAt     DateTime  @default(now())
   changes       Change[]
   checks        Check[]

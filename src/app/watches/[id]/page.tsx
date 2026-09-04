@@ -93,8 +93,15 @@ export default async function WatchDetail({
         </Box>
         <Box title="Status">
           <div className="text-sm">
-            {watch.isActive ? "active" : "paused"} · every{" "}
-            {intervalLabel(watch.intervalMinutes)}
+            {watch.snoozedUntil && watch.snoozedUntil.getTime() > nowMs()
+              ? `snoozed until ${watch.snoozedUntil.toLocaleDateString("cs-CZ")}`
+              : watch.isActive
+                ? "active"
+                : "paused"}{" "}
+            · every {intervalLabel(watch.intervalMinutes)}
+            {watch.lastCheckedVia && (
+              <span className="text-neutral-500"> · via {watch.lastCheckedVia === "agent" ? "local agent" : "cloud"}</span>
+            )}
           </div>
           <div className="text-xs text-neutral-500 mt-0.5">
             last check{" "}
@@ -170,6 +177,7 @@ export default async function WatchDetail({
         intervalMinutes={watch.intervalMinutes}
         conditionType={watch.conditionType}
         conditionValue={watch.conditionValue}
+        snoozedUntil={watch.snoozedUntil ? watch.snoozedUntil.toISOString() : null}
       />
 
       <div>

@@ -15,9 +15,11 @@ export default function WatchControls({
   intervalMinutes: initialInterval,
   conditionType: initialConditionType,
   conditionValue: initialConditionValue,
+  snoozedUntil,
 }: {
   id: string;
   isActive: boolean;
+  snoozedUntil: string | null;
   label: string;
   notifyEmail: string;
   intervalMinutes: number;
@@ -142,6 +144,15 @@ export default function WatchControls({
     if (saveMsg) setSaveMsg(null);
   }
 
+  const snoozedDate = snoozedUntil && new Date(snoozedUntil).getTime() > Date.now() ? new Date(snoozedUntil) : null;
+
+  function snooze(days: number) {
+    const until = new Date();
+    until.setDate(until.getDate() + days);
+    until.setHours(8, 0, 0, 0);
+    patch({ snoozedUntil: until.toISOString() });
+  }
+
   return (
     <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 space-y-5">
       <div className="grid sm:grid-cols-2 gap-4">
@@ -212,6 +223,33 @@ export default function WatchControls({
         </button>
         {checkMsg && (
           <span className="text-xs text-neutral-500">{checkMsg}</span>
+        )}
+        {snoozedDate ? (
+          <button
+            disabled={busy}
+            onClick={() => patch({ snoozedUntil: null })}
+            title="Checks resume immediately"
+            className="rounded-md border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-50"
+          >
+            Snoozed until {snoozedDate.toLocaleDateString("cs-CZ")} · wake
+          </button>
+        ) : (
+          <select
+            disabled={busy}
+            value=""
+            onChange={(e) => {
+              const d = Number(e.target.value);
+              if (d > 0) snooze(d);
+            }}
+            title="Pause checks until a date, then resume by itself"
+            className="rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-50"
+          >
+            <option value="">Snooze…</option>
+            <option value="1">1 day</option>
+            <option value="3">3 days</option>
+            <option value="7">1 week</option>
+            <option value="30">1 month</option>
+          </select>
         )}
         <button
           disabled={testing}

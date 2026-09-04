@@ -14,6 +14,18 @@ const PatchSchema = z
     intervalMinutes: z.number().int().min(1).max(10080).optional(),
     conditionType: z.enum(CONDITION_TYPES).optional(),
     conditionValue: z.string().max(500).nullable().optional(),
+    // ISO date; null wakes the watch. Snoozed watches stay active and resume
+    // on their own once the date has passed.
+    snoozedUntil: z
+      .string()
+      .datetime()
+      .nullable()
+      .optional()
+      .transform((v) => (v == null ? v : new Date(v)))
+      .refine(
+        (d) => d == null || (d.getTime() > Date.now() && d.getTime() < Date.now() + 366 * 86_400_000),
+        { message: "Snooze date must be in the future, within a year" },
+      ),
   })
   .superRefine((data, ctx) => {
     if (!data.conditionType) return;

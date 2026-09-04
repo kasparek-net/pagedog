@@ -13,9 +13,12 @@ type Schedulable = {
   lastCheckedAt: Date | null;
   intervalMinutes: number;
   failStreak: number;
+  snoozedUntil: Date | null;
 };
 
 export function isDue(w: Schedulable, now = Date.now()): boolean {
+  // Snoozed means "not before this date"; it wakes on its own afterwards.
+  if (w.snoozedUntil && w.snoozedUntil.getTime() > now) return false;
   if (!w.lastCheckedAt) return true;
   const elapsed = now - w.lastCheckedAt.getTime();
   return elapsed >= effectiveIntervalMinutes(w.intervalMinutes, w.failStreak) * 60_000 - 30_000;
