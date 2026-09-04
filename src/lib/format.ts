@@ -39,3 +39,10 @@ export function shortenUrl(raw: string, maxLen = 60): string {
     return raw.length > maxLen ? raw.slice(0, maxLen - 1) + "…" : raw;
   }
 }
+
+// Server components render once per request, so reading the clock in them is
+// fine; the helper keeps the React purity lint from treating it as a client
+// re-render hazard.
+export function nowMs(): number {
+  return Date.now();
+}

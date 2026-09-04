@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useNow } from "@/lib/use-now";
 
 export function Countdown({
   targetMs,
@@ -11,13 +11,7 @@ export function Countdown({
   prefix?: string;
   overdue?: string;
 }) {
-  const [now, setNow] = useState<number | null>(null);
-
-  useEffect(() => {
-    setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  const now = useNow(1000);
 
   if (now === null) return <span className="tabular-nums">—</span>;
   const diff = targetMs - now;

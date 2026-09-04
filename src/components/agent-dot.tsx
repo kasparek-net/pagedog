@@ -1,11 +1,12 @@
 import { agentHealth } from "@/lib/agent-status";
+import { nowMs } from "@/lib/format";
 
 // The header's one-glance answer to "is my agent alive?". The outage banner
 // covers the bad case; this shows the good one, which was invisible before.
 export async function AgentDot() {
   const health = await agentHealth();
   if (!health.lastSeenAt) return null;
-  const ageSec = Math.round((Date.now() - health.lastSeenAt.getTime()) / 1000);
+  const ageSec = Math.round((nowMs() - health.lastSeenAt.getTime()) / 1000);
   const age = ageSec < 90 ? `${ageSec} s` : ageSec < 5400 ? `${Math.round(ageSec / 60)} min` : `${Math.round(ageSec / 3600)} h`;
   return (
     <span

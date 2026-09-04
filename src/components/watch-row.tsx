@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useNow } from "@/lib/use-now";
 import { useRouter } from "next/navigation";
 import { Countdown } from "./countdown";
 import { Sparkline } from "./sparkline";
@@ -29,13 +30,7 @@ export function WatchRow({ watch }: { watch: Watch }) {
   const router = useRouter();
   const [active, setActive] = useState(watch.isActive);
   const [pending, startTransition] = useTransition();
-  const [now, setNow] = useState<number | null>(null);
-
-  useEffect(() => {
-    setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  const now = useNow(1000);
 
   const lastMs = watch.lastCheckedAt ? new Date(watch.lastCheckedAt).getTime() : null;
   const dueMs = lastMs !== null ? lastMs + watch.intervalMinutes * 60_000 : (now ?? 0);

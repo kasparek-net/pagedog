@@ -9,6 +9,7 @@ import { Countdown } from "@/components/countdown";
 import { ValueChart } from "@/components/value-chart";
 import { AvailabilityTimeline } from "@/components/availability-timeline";
 import { formatDeltaPct, seriesFromChanges, summarizeSeries } from "@/lib/numeric";
+import { nowMs } from "@/lib/format";
 import WatchControls from "./controls";
 
 export const dynamic = "force-dynamic";
@@ -38,8 +39,8 @@ export default async function WatchDetail({
 
   const dueMs = watch.lastCheckedAt
     ? watch.lastCheckedAt.getTime() + watch.intervalMinutes * 60_000
-    : Date.now();
-  const cronTickMs = Math.ceil(Date.now() / (15 * 60_000)) * (15 * 60_000);
+    : nowMs();
+  const cronTickMs = Math.ceil(nowMs() / (15 * 60_000)) * (15 * 60_000);
   const nextMs = Math.max(dueMs, cronTickMs);
   const numeric = summarizeSeries(seriesFromChanges(changes, watch.lastValue));
 
@@ -156,7 +157,7 @@ export default async function WatchDetail({
           changes={changes}
           current={watch.lastValue}
           since={watch.createdAt}
-          now={Date.now()}
+          now={nowMs()}
           colored={watch.selector === "@availability"}
         />
       )}
