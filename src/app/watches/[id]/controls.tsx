@@ -6,6 +6,7 @@ import { Field } from "@/components/field";
 import { IntervalGroup } from "@/components/interval-group";
 import { ConditionPicker } from "@/components/condition-picker";
 import { isValidRegex, optionFor, type ConditionType } from "@/lib/condition";
+import { useNow } from "@/lib/use-now";
 
 export default function WatchControls({
   id,
@@ -144,7 +145,9 @@ export default function WatchControls({
     if (saveMsg) setSaveMsg(null);
   }
 
-  const snoozedDate = snoozedUntil && new Date(snoozedUntil).getTime() > Date.now() ? new Date(snoozedUntil) : null;
+  const now = useNow(60_000);
+  const snoozedDate =
+    snoozedUntil && now !== null && new Date(snoozedUntil).getTime() > now ? new Date(snoozedUntil) : null;
 
   function snooze(days: number) {
     const until = new Date();
