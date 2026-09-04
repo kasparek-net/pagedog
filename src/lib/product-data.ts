@@ -5,6 +5,8 @@ import * as cheerio from "cheerio";
 // desktop and mobile layout, and it is there even when the visible markup is
 // built by JavaScript we never run.
 export type ProductData = {
+  name: string | null;
+  image: string | null;
   price: string | null;
   availability: string | null;
 };
@@ -37,11 +39,22 @@ export function productFromHtml(html: string): ProductData {
     const offer = firstOffer(node);
     if (!offer) continue;
     return {
+      name: typeof node.name === "string" ? node.name.trim().slice(0, 100) || null : null,
+      image: firstImage(node.image),
       price: formatPrice(offer.price, offer.priceCurrency),
       availability: formatAvailability(offer.availability),
     };
   }
-  return { price: null, availability: null };
+  return { name: null, image: null, price: null, availability: null };
+}
+
+function firstImage(value: unknown): string | null {
+  const item = Array.isArray(value) ? value[0] : value;
+  if (typeof item === "string") return item;
+  if (item && typeof item === "object" && typeof (item as Json).url === "string") {
+    return (item as Json).url as string;
+  }
+  return null;
 }
 
 function parseJson(text: string): unknown {

@@ -197,7 +197,9 @@ export function extractFromHtml(
       ok: true,
       value,
       hash: sha256(value),
-      imageUrl: baseUrl ? extractOgImage($, baseUrl) : null,
+      imageUrl: baseUrl
+        ? (extractOgImage($, baseUrl) ?? resolveImageUrl(product.image ?? undefined, baseUrl))
+        : null,
       faviconUrl: baseUrl ? extractFavicon($, baseUrl) : null,
     };
   }

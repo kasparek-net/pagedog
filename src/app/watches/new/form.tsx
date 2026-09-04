@@ -13,6 +13,13 @@ type TestState =
   | { status: "ok"; value: string }
   | { status: "error"; error: string };
 
+type Product = {
+  name: string | null;
+  image: string | null;
+  price: string | null;
+  availability: string | null;
+};
+
 export default function NewWatchForm({ defaultEmail }: { defaultEmail: string }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
@@ -22,7 +29,7 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [selector, setSelector] = useState("");
   const [pickedText, setPickedText] = useState("");
-  const [product, setProduct] = useState<{ price: string | null; availability: string | null } | null>(null);
+  const [product, setProduct] = useState<Product | null>(null);
   const [label, setLabel] = useState("");
   const [email, setEmail] = useState(defaultEmail);
   const [intervalMinutes, setIntervalMinutes] = useState(60);
@@ -68,9 +75,10 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selector, loadedUrl, previewHtml, pickedText]);
 
-  function setDefaultLabel(u: string) {
+  function setDefaultLabel(u: string, productName: string | null) {
+    if (label) return;
     try {
-      if (!label) setLabel(new URL(u).hostname.replace(/^www\./, ""));
+      setLabel(productName ?? new URL(u).hostname.replace(/^www\./, ""));
     } catch {}
   }
 
@@ -92,20 +100,25 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
         // fetches those from a network the shop accepts — so keep the rest of
         // the form open for a hand-typed selector.
         setLoadedUrl(url);
-        setDefaultLabel(url);
+        setDefaultLabel(url, null);
         return;
       }
+      // A product page needs no picking at all: name it after the product and
+      // start on availability (or price), leaving the picker as an override.
+      let p: Product | null = null;
       const raw = res.headers.get("x-pagedog-product");
       if (raw) {
         try {
-          const p = JSON.parse(decodeURIComponent(raw));
-          if (p.price || p.availability) setProduct(p);
+          const parsed = JSON.parse(decodeURIComponent(raw)) as Product;
+          if (parsed.price || parsed.availability) p = parsed;
         } catch {}
       }
+      setProduct(p);
+      if (p) setSelector(p.availability ? "@availability" : "@price");
       const html = await res.text();
       setPreviewHtml(html);
       setLoadedUrl(url);
-      setDefaultLabel(url);
+      setDefaultLabel(url, p?.name ?? null);
     } catch (err) {
       setPreviewError(err instanceof Error ? err.message : "Error");
     } finally {
