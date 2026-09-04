@@ -94,6 +94,22 @@ export default function WatchControls({
 
   const [checking, setChecking] = useState(false);
   const [checkMsg, setCheckMsg] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
+
+  async function sendTestEmail() {
+    setTesting(true);
+    setTestMsg(null);
+    try {
+      const res = await fetch(`/api/watches/${id}/test-email`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      setTestMsg(res.ok ? `sent to ${data?.to ?? "you"}` : (data?.error ?? "sending failed"));
+    } catch {
+      setTestMsg("sending failed");
+    } finally {
+      setTesting(false);
+    }
+  }
 
   async function checkNow() {
     setChecking(true);
@@ -196,6 +212,17 @@ export default function WatchControls({
         </button>
         {checkMsg && (
           <span className="text-xs text-neutral-500">{checkMsg}</span>
+        )}
+        <button
+          disabled={testing}
+          onClick={sendTestEmail}
+          title="Send the change notification with sample values, to confirm emails arrive"
+          className="rounded-md border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-50"
+        >
+          {testing ? "Sending…" : "Test email"}
+        </button>
+        {testMsg && (
+          <span className="text-xs text-neutral-500">{testMsg}</span>
         )}
         <div className="grow" />
         <button
