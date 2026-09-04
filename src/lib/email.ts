@@ -133,6 +133,36 @@ export async function sendAutoPauseNotification(input: {
   await resend.emails.send({ from, to: input.to, subject, html, text });
 }
 
+export async function sendAgentDownNotification(input: {
+  to: string;
+  lastSeenAt: Date | null;
+  hosts: string[];
+}) {
+  if (!resend) {
+    console.warn("[email] RESEND_API_KEY not set, skipping agent-down email");
+    return;
+  }
+  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const seen = input.lastSeenAt
+    ? `last reported ${input.lastSeenAt.toISOString().replace("T", " ").slice(0, 16)} UTC`
+    : "has never reported";
+  const hosts = input.hosts.join(", ");
+  const subject = `🔌 Local agent is down`;
+  const html = `
+<!doctype html>
+<html><head><meta charset="utf-8"></head><body style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#0a0a0a;max-width:560px;margin:0 auto;padding:24px">
+  <h2 style="margin:0 0 8px">🔌 Local agent is down</h2>
+  <p style="margin:0 0 16px;color:#525252">The agent that checks ${escape(hosts)} ${escape(seen)}. Those watches are not being checked until it is back.</p>
+  <p style="margin:0 0 8px;color:#737373;font-size:13px">On the Pi</p>
+  <pre style="margin:0 0 16px;padding:12px;background:#fafafa;border:1px solid #e5e5e5;border-radius:6px;white-space:pre-wrap;font-size:12px">docker ps --filter name=pagedog-agent
+docker logs --tail 20 pagedog-agent
+docker restart pagedog-agent</pre>
+  <p style="margin:16px 0"><a href="${escape(appUrl)}" style="display:inline-block;background:#eabf43;color:#0a0a0a;padding:8px 14px;border-radius:6px;text-decoration:none;font-weight:500">Open Pagedog</a></p>
+</body></html>`;
+  const text = `Local agent is down\n\nThe agent that checks ${hosts} ${seen}. Those watches are not being checked until it is back.\n\nOn the Pi:\n  docker ps --filter name=pagedog-agent\n  docker logs --tail 20 pagedog-agent\n  docker restart pagedog-agent\n\n${appUrl}\n`;
+  await resend.emails.send({ from, to: input.to, subject, html, text });
+}
+
 function escape(s: string): string {
   return s
     .replace(/&/g, "&amp;")

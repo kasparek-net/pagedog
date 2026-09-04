@@ -25,6 +25,8 @@ async function fetchViaAgent(url: string): Promise<string> {
     await new Promise((r) => setTimeout(r, AGENT_PREVIEW_POLL_MS));
     const current = await db.previewJob.findUnique({ where: { id: job.id } });
     if (!current?.doneAt) continue;
+    // Each job carries a whole page; nothing needs it once it has been read.
+    db.previewJob.delete({ where: { id: job.id } }).catch(() => {});
     if (current.html) return current.html;
     throw new Error(current.error ?? "Agent could not fetch the page");
   }

@@ -81,3 +81,11 @@ model PreviewJob {
 
   @@index([doneAt, createdAt])
 }
+
+// Single row ("agent"): when the local agent last polled, so the app can tell
+// people their agent-handled watches have silently stopped.
+model AgentStatus {
+  id              String    @id
+  lastSeenAt      DateTime
+  staleNotifiedAt DateTime?
+}

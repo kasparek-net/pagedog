@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { getSessionEmail } from "@/lib/session";
 import { WatchRow } from "@/components/watch-row";
 import { seriesFromChanges } from "@/lib/numeric";
+import { isAgentHost } from "@/lib/agent-hosts";
+import { agentHealth } from "@/lib/agent-status";
 
 export const dynamic = "force-dynamic";
 
@@ -40,12 +42,25 @@ export default async function HomePage() {
     },
   });
 
+  const agentWatches = watches.filter((w) => w.isActive && isAgentHost(w.url));
+  const agent = agentWatches.length > 0 ? await agentHealth() : null;
+
   return (
     <div>
       <div className="flex items-baseline justify-between mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Watches</h1>
         <span className="text-sm text-neutral-500 truncate max-w-[200px]">{email}</span>
       </div>
+      {agent?.stale && (
+        <div className="mb-4 rounded-lg border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm text-red-800 dark:text-red-200">
+          <strong>Local agent is down.</strong>{" "}
+          {agent.lastSeenAt
+            ? `Last seen ${formatAgo(agent.lastSeenAt)} — `
+            : "It has never connected — "}
+          {agentWatches.length === 1 ? "1 watch is" : `${agentWatches.length} watches are`} not
+          being checked until it is back.
+        </div>
+      )}
       {watches.length === 0 ? (
         <div className="rounded-xl border border-dashed border-neutral-300 dark:border-neutral-700 p-10 text-center">
           <p className="text-neutral-600 dark:text-neutral-400">
@@ -83,4 +98,11 @@ export default async function HomePage() {
       )}
     </div>
   );
+}
+
+function formatAgo(d: Date): string {
+  const min = Math.round((Date.now() - d.getTime()) / 60_000);
+  if (min < 60) return `${min} min ago`;
+  const h = Math.round(min / 60);
+  return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
 }

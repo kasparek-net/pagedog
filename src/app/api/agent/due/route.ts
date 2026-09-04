@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { checkAgentAuth } from "@/lib/agent-auth";
 import { isAgentHost } from "@/lib/agent-hosts";
+import { touchAgent } from "@/lib/agent-status";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const FAST_POLL_MS = 3_000;
+const SLOW_POLL_MS = 15_000;
+const PREVIEW_BURST_MS = 2 * 60_000;
 
 export async function GET(req: NextRequest) {
   const auth = checkAgentAuth(req);
@@ -27,9 +32,16 @@ export async function GET(req: NextRequest) {
     take: 3,
     select: { id: true, url: true },
   });
+  // Somebody who just loaded a preview is likely to load another; poll fast
+  // for a while after any preview activity, otherwise take it easy.
+  const recentPreview = await db.previewJob.count({
+    where: { createdAt: { gt: new Date(now - PREVIEW_BURST_MS) } },
+  });
+  await touchAgent();
 
   return NextResponse.json({
     watches: due.map((w) => ({ id: w.id, url: w.url, selector: w.selector })),
     previewJobs,
+    pollMs: previewJobs.length > 0 || recentPreview > 0 ? FAST_POLL_MS : SLOW_POLL_MS,
   });
 }
