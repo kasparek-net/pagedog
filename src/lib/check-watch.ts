@@ -5,8 +5,8 @@ import {
   sendFailingNotification,
   sendSelectorGoneNotification,
 } from "@/lib/email";
-import { evaluate, type Condition, type ConditionType } from "@/lib/condition";
-import { isNumericValue } from "@/lib/numeric";
+import { evaluateTransition, type Condition, type ConditionType } from "@/lib/condition";
+import { isNumericValue, parseNumber } from "@/lib/numeric";
 import { FAIL_SLOWDOWN_THRESHOLD, effectiveIntervalMinutes } from "@/lib/schedule";
 import { pushTo } from "@/lib/push";
 import { availabilityTone } from "@/lib/product-data";
@@ -144,10 +144,8 @@ export async function applyResult(
       type: watch.conditionType as ConditionType,
       value: watch.conditionValue,
     };
-    const shouldEmail =
-      cond.type === "change"
-        ? true
-        : !evaluate(watch.lastValue, cond) && evaluate(result.value, cond);
+    const historyMin = cond.type === "lowest" ? await historyMinimum(watch.id, watch.lastValue) : null;
+    const shouldEmail = evaluateTransition(watch.lastValue, result.value, cond, historyMin);
     if (shouldEmail) {
       try {
         await sendChangeNotification({
@@ -190,4 +188,16 @@ export async function applyResult(
     }),
   ]);
   return "changed";
+}
+
+// The lowest number this watch has ever seen, across every recorded change.
+async function historyMinimum(watchId: string, lastValue: string | null): Promise<number | null> {
+  const changes = await db.change.findMany({
+    where: { watchId },
+    select: { oldValue: true, newValue: true },
+  });
+  const values = [...changes.flatMap((c) => [c.oldValue, c.newValue]), lastValue]
+    .map(parseNumber)
+    .filter((n): n is number => n !== null);
+  return values.length ? Math.min(...values) : null;
 }
