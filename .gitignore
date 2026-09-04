@@ -45,3 +45,12 @@ next-env.d.ts
 # clerk configuration (can include secrets)
 /.clerk/
 .env*.local
+
+# Cloudflare
+.open-next
+.dev.vars
+.wrangler
+cloudflare-env.d.ts
+
+# Prisma client is generated at build time
+src/generated

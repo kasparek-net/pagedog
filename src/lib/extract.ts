@@ -2,7 +2,7 @@ import * as cheerio from "cheerio";
 import { fetchTrackedPrice, formatTrackedPrice } from "@/lib/price-tracker";
 import { productFromHtml, isProductField } from "@/lib/product-data";
 import { createHash } from "node:crypto";
-import { lookup } from "node:dns/promises";
+import { resolve4, resolve6 } from "node:dns/promises";
 import { isIP } from "node:net";
 
 export type ExtractErrorKind = "fetch" | "selector";
@@ -35,56 +35,25 @@ type MinimalResponse = {
   text(): Promise<string>;
 };
 
-let impit: import("impit").Impit | null = null;
-
-async function requestOnce(
-  url: string,
-  impersonate: boolean,
-  signal: AbortSignal,
-): Promise<MinimalResponse> {
-  if (!impersonate) {
-    return fetch(url, {
-      headers: BOT_HEADERS,
-      redirect: "manual",
-      signal,
-      cache: "no-store",
-    });
-  }
-  if (!impit) {
-    const { Impit } = await import("impit");
-    // Cloudflare scores datacenter IPs as bots regardless of fingerprint, so a
-    // residential proxy is needed on top of impersonation when deployed.
-    const proxyUrl = process.env.FETCH_PROXY_URL;
-    impit = new Impit({ browser: "chrome", ...(proxyUrl ? { proxyUrl } : {}) });
-  }
-  return impit.fetch(url, {
-    headers: { "Accept-Language": "cs,en;q=0.9" },
+function requestOnce(url: string, signal: AbortSignal): Promise<MinimalResponse> {
+  return fetch(url, {
+    headers: BOT_HEADERS,
     redirect: "manual",
     signal,
+    cache: "no-store",
   });
 }
 
-// Sites behind bot protection (Cloudflare et al.) reject our plain fetch on TLS
-// fingerprint alone. Retry those through a client that impersonates Chrome.
+// Shops behind bot protection (Cloudflare et al.) refuse datacenter IPs no
+// matter what the request looks like — a browser fingerprint from here never
+// got through either. Those pages belong to the local agent; this only marks
+// them as such.
 export function isBotBlock(e: unknown): boolean {
   const msg = e instanceof Error ? e.message : "";
   return msg === "HTTP 403" || msg === "HTTP 429" || msg === "HTTP 503";
 }
 
 export async function fetchHtml(url: string, timeoutMs = 15000): Promise<string> {
-  try {
-    return await fetchHtmlWith(url, timeoutMs, false);
-  } catch (e) {
-    if (!isBotBlock(e)) throw e;
-    return await fetchHtmlWith(url, timeoutMs, true);
-  }
-}
-
-async function fetchHtmlWith(
-  url: string,
-  timeoutMs: number,
-  impersonate: boolean,
-): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -96,7 +65,7 @@ async function fetchHtmlWith(
         throw new Error(`Disallowed protocol: ${parsed.protocol}`);
       }
       await assertPublicHost(parsed.hostname);
-      res = await requestOnce(current, impersonate, controller.signal);
+      res = await requestOnce(current, controller.signal);
       if (res.status >= 300 && res.status < 400) {
         const loc = res.headers.get("location");
         if (!loc) throw new Error("Redirect without Location header");
@@ -171,9 +140,14 @@ export async function assertPublicHost(hostname: string): Promise<void> {
   if (/^localhost$/i.test(hostname) || hostname.endsWith(".localhost")) {
     throw new Error("Local hostname not allowed");
   }
-  const results = await lookup(hostname, { all: true });
-  for (const r of results) {
-    if (isPrivateIp(r.address)) throw new Error("Resolves to private IP");
+  // resolve4/resolve6 rather than lookup: Workers implement the former over
+  // DNS-over-HTTPS and not the latter, and both work the same on Node.
+  const addresses = (
+    await Promise.all([resolve4(hostname).catch(() => []), resolve6(hostname).catch(() => [])])
+  ).flat();
+  if (addresses.length === 0) throw new Error("Cannot resolve host");
+  for (const address of addresses) {
+    if (isPrivateIp(address)) throw new Error("Resolves to private IP");
   }
 }
 
