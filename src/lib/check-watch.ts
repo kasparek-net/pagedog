@@ -2,13 +2,12 @@ import { db } from "@/lib/db";
 import { fetchAndExtract, type ExtractResult } from "@/lib/extract";
 import {
   sendChangeNotification,
-  sendAutoPauseNotification,
+  sendFailingNotification,
   sendSelectorGoneNotification,
 } from "@/lib/email";
 import { evaluate, type Condition, type ConditionType } from "@/lib/condition";
 import { isNumericValue } from "@/lib/numeric";
-
-const AUTO_PAUSE_THRESHOLD = 5;
+import { FAIL_SLOWDOWN_THRESHOLD, effectiveIntervalMinutes } from "@/lib/schedule";
 
 export type ProcessInput = {
   id: string;
@@ -22,6 +21,8 @@ export type ProcessInput = {
   faviconUrl: string | null;
   conditionType: string;
   conditionValue: string | null;
+  intervalMinutes: number;
+  failStreak: number;
 };
 
 export type ProcessResult = "changed" | "same" | "error";
@@ -44,12 +45,14 @@ export async function applyResult(
   if (!result.ok) {
     const isSelectorGone =
       result.kind === "selector" && watch.lastHash !== null && watch.lastValue !== null;
+    const failStreak = watch.failStreak + 1;
     await db.$transaction([
       db.watch.update({
         where: { id: watch.id },
         data: {
           lastCheckedAt: new Date(),
           lastError: result.error,
+          failStreak,
           ...(isSelectorGone ? { isActive: false } : {}),
         },
       }),
@@ -70,8 +73,20 @@ export async function applyResult(
       } catch (e) {
         console.error("[check-watch] selector-gone email failed", e);
       }
-    } else {
-      await maybeAutoPause(watch);
+    } else if (failStreak === FAIL_SLOWDOWN_THRESHOLD) {
+      try {
+        await sendFailingNotification({
+          to: watch.notifyEmail,
+          label: watch.label,
+          url: watch.url,
+          lastError: result.error,
+          failures: failStreak,
+          slowedToMinutes: effectiveIntervalMinutes(watch.intervalMinutes, failStreak),
+          watchId: watch.id,
+        });
+      } catch (e) {
+        console.error("[check-watch] failing email failed", e);
+      }
     }
     return "error";
   }
@@ -82,6 +97,7 @@ export async function applyResult(
         data: {
           lastCheckedAt: new Date(),
           lastError: null,
+          failStreak: 0,
           imageUrl: result.imageUrl === watch.imageUrl ? undefined : result.imageUrl,
           faviconUrl: result.faviconUrl === watch.faviconUrl ? undefined : result.faviconUrl,
         },
@@ -131,6 +147,7 @@ export async function applyResult(
         lastValue: result.value,
         lastHash: result.hash,
         lastError: null,
+        failStreak: 0,
         imageUrl: result.imageUrl,
         faviconUrl: result.faviconUrl,
       },
@@ -140,31 +157,4 @@ export async function applyResult(
     }),
   ]);
   return "changed";
-}
-
-async function maybeAutoPause(watch: ProcessInput) {
-  const recent = await db.check.findMany({
-    where: { watchId: watch.id },
-    orderBy: { checkedAt: "desc" },
-    take: AUTO_PAUSE_THRESHOLD,
-    select: { status: true, error: true },
-  });
-  if (recent.length < AUTO_PAUSE_THRESHOLD) return;
-  if (!recent.every((c) => c.status === "error")) return;
-  await db.watch.update({
-    where: { id: watch.id },
-    data: { isActive: false },
-  });
-  try {
-    await sendAutoPauseNotification({
-      to: watch.notifyEmail,
-      label: watch.label,
-      url: watch.url,
-      lastError: recent[0]?.error ?? "unknown error",
-      failures: AUTO_PAUSE_THRESHOLD,
-      watchId: watch.id,
-    });
-  } catch (e) {
-    console.error("[check-watch] auto-pause email failed", e);
-  }
 }

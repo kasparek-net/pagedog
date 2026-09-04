@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { checkAgentAuth } from "@/lib/agent-auth";
 import { isAgentHost } from "@/lib/agent-hosts";
 import { touchAgent } from "@/lib/agent-status";
+import { isDue } from "@/lib/schedule";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,9 +20,7 @@ export async function GET(req: NextRequest) {
   const now = Date.now();
   const due = all.filter((w) => {
     if (!isAgentHost(w.url)) return false;
-    if (!w.lastCheckedAt) return true;
-    const elapsed = now - w.lastCheckedAt.getTime();
-    return elapsed >= w.intervalMinutes * 60_000 - 30_000;
+    return isDue(w, now);
   });
 
   // Previews are interactive, so they ride along on the poll the agent already

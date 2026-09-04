@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { processWatch } from "@/lib/check-watch";
 import { isAgentHost } from "@/lib/agent-hosts";
+import { isDue } from "@/lib/schedule";
 import { agentHealth, markAgentStaleNotified } from "@/lib/agent-status";
 import { sendAgentDownNotification } from "@/lib/email";
 
@@ -68,9 +69,7 @@ async function runChecks() {
   const due = all.filter((w) => {
     // Hosts that block our IP are handled by the local agent instead.
     if (isAgentHost(w.url)) return false;
-    if (!w.lastCheckedAt) return true;
-    const elapsed = now - w.lastCheckedAt.getTime();
-    return elapsed >= w.intervalMinutes * 60_000 - 30_000;
+    return isDue(w, now);
   });
   const concurrency = 5;
   let changed = 0;

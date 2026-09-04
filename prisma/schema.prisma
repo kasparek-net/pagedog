@@ -25,6 +25,8 @@ model Watch {
   intervalMinutes Int     @default(60)
   conditionType   String  @default("change")
   conditionValue  String?
+  failStreak    Int       @default(0)
+  cloudBlocked  Boolean   @default(false)
   createdAt     DateTime  @default(now())
   changes       Change[]
   checks        Check[]
