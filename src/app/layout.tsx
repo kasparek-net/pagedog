@@ -1,15 +1,25 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import Link from "next/link";
 import { getSessionEmail } from "@/lib/session";
 import { getTheme } from "@/lib/theme";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Logo } from "@/components/logo";
+import { AgentDot } from "@/components/agent-dot";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Pagedog",
   description: "Watches web pages for changes and emails you when they happen.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Pagedog", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 const NO_FLASH_SCRIPT =
@@ -44,6 +54,7 @@ export default async function RootLayout({
               <ThemeToggle initialTheme={theme} />
               {email ? (
                 <>
+                  <AgentDot />
                   <Link
                     href="/watches/new"
                     className="rounded-md bg-brand text-black px-3 py-1.5 font-medium hover:bg-brand-dark"

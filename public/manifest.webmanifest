@@ -1,0 +1,12 @@
+{
+  "name": "Pagedog",
+  "short_name": "Pagedog",
+  "description": "Watches web pages for changes and tells you when they happen.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#eabf43",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
