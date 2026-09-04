@@ -7,6 +7,7 @@ import { intervalLabel, shortenUrl } from "@/lib/format";
 import { conditionLabel, type ConditionType } from "@/lib/condition";
 import { Countdown } from "@/components/countdown";
 import { ValueChart } from "@/components/value-chart";
+import { AvailabilityTimeline } from "@/components/availability-timeline";
 import { formatDeltaPct, seriesFromChanges, summarizeSeries } from "@/lib/numeric";
 import WatchControls from "./controls";
 
@@ -148,6 +149,16 @@ export default async function WatchDetail({
             <span className="truncate">{numeric.current}</span>
           </div>
         </div>
+      )}
+
+      {!numeric && changes.length > 0 && (
+        <AvailabilityTimeline
+          changes={changes}
+          current={watch.lastValue}
+          since={watch.createdAt}
+          now={Date.now()}
+          colored={watch.selector === "@availability"}
+        />
       )}
 
       <WatchControls
