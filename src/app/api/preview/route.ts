@@ -5,7 +5,7 @@ import { fetchHtml, extractFromHtml, assertPublicHost, isBotBlock } from "@/lib/
 import { fetchTrackedPrice, formatTrackedPrice } from "@/lib/price-tracker";
 import { rateLimit } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
-import { isAgentHost } from "@/lib/agent-hosts";
+import { agentHealth } from "@/lib/agent-status";
 import { productFromHtml } from "@/lib/product-data";
 import { PICKER_JS } from "@/lib/picker-source";
 
@@ -79,25 +79,33 @@ export async function GET(req: NextRequest) {
 
   let html: string;
   try {
-    html = isAgentHost(url.toString())
-      ? await fetchViaAgent(url.toString())
-      : await fetchHtml(url.toString());
+    html = await fetchHtml(url.toString());
   } catch (e) {
     const status = e instanceof Error ? e.message : "Fetch failed";
-    // The page cannot be rendered for the picker at all, but a watch on it may
-    // still work through the price tracker, so say so instead of a bare 403.
-    if (isBotBlock(e)) {
+    // Blocked here, but the local agent fetches from a network the shop
+    // accepts — so ask it, and only give up if it is not around.
+    if (isBotBlock(e) && !(await agentHealth()).stale) {
+      try {
+        html = await fetchViaAgent(url.toString());
+      } catch (agentError) {
+        return NextResponse.json(
+          { error: agentError instanceof Error ? agentError.message : "Agent fetch failed" },
+          { status: 502 },
+        );
+      }
+    } else if (isBotBlock(e)) {
       const tracked = await fetchTrackedPrice(url.toString());
       return NextResponse.json(
         {
           error: tracked.ok
-            ? `${status} — this shop blocks previews, but its price is tracked externally (currently ${formatTrackedPrice(tracked.price)}). Save the watch and it will be checked that way.`
-            : `${status} — this shop blocks previews and no tracked price is available (${tracked.reason}).`,
+            ? `${status} — this shop blocks previews and the local agent is offline, but its price is tracked externally (currently ${formatTrackedPrice(tracked.price)}).`
+            : `${status} — this shop blocks previews and the local agent is offline (${tracked.reason}).`,
         },
         { status: 502 },
       );
+    } else {
+      return NextResponse.json({ error: status }, { status: 502 });
     }
-    return NextResponse.json({ error: status }, { status: 502 });
   }
 
   if (mode === "test" && selector) {

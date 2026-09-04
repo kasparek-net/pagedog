@@ -27,12 +27,16 @@ export type ProcessInput = {
 
 export type ProcessResult = "changed" | "same" | "error";
 
+// Cloud-side check. Remembers whether the shop refused our datacenter IP, so
+// the app knows which watches only the local agent can serve.
 export async function processWatch(watch: ProcessInput): Promise<ProcessResult> {
   const t0 = Date.now();
   const result = await fetchAndExtract(watch.url, watch.selector, {
     priceFallback: isNumericValue(watch.lastValue),
   });
-  return applyResult(watch, result, Date.now() - t0);
+  const cloudBlocked =
+    !result.ok && result.kind === "fetch" && /^HTTP (403|429|503)\b/.test(result.error);
+  return applyResult(watch, result, Date.now() - t0, { cloudBlocked });
 }
 
 // Split out so the local agent can report a page it fetched itself: extraction
@@ -41,6 +45,7 @@ export async function applyResult(
   watch: ProcessInput,
   result: ExtractResult,
   durationMs: number,
+  extra: { cloudBlocked?: boolean } = {},
 ): Promise<ProcessResult> {
   if (!result.ok) {
     const isSelectorGone =
@@ -53,6 +58,7 @@ export async function applyResult(
           lastCheckedAt: new Date(),
           lastError: result.error,
           failStreak,
+          ...extra,
           ...(isSelectorGone ? { isActive: false } : {}),
         },
       }),
@@ -98,6 +104,7 @@ export async function applyResult(
           lastCheckedAt: new Date(),
           lastError: null,
           failStreak: 0,
+          ...extra,
           imageUrl: result.imageUrl === watch.imageUrl ? undefined : result.imageUrl,
           faviconUrl: result.faviconUrl === watch.faviconUrl ? undefined : result.faviconUrl,
         },
@@ -148,6 +155,7 @@ export async function applyResult(
         lastHash: result.hash,
         lastError: null,
         failStreak: 0,
+        ...extra,
         imageUrl: result.imageUrl,
         faviconUrl: result.faviconUrl,
       },

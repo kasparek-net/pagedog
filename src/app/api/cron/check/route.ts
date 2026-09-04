@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { processWatch } from "@/lib/check-watch";
-import { isAgentHost } from "@/lib/agent-hosts";
 import { isDue } from "@/lib/schedule";
 import { agentHealth, markAgentStaleNotified } from "@/lib/agent-status";
 import { sendAgentDownNotification } from "@/lib/email";
@@ -39,14 +38,11 @@ async function cleanupOldChecks() {
   return res.count;
 }
 
-// The agent is a single machine at home; if it stops polling, every watch it
-// owns goes quiet with no error anywhere. Tell the owners once per outage.
-async function alertIfAgentDown() {
-  const agentWatches = (await db.watch.findMany({ where: { isActive: true } })).filter((w) =>
-    isAgentHost(w.url),
-  );
+// The agent is a single machine at home; if it stops polling, the watches only
+// it can fetch go quiet with no error anywhere. Tell the owners once per outage.
+async function alertIfAgentDown(health: Awaited<ReturnType<typeof agentHealth>>) {
+  const agentWatches = await db.watch.findMany({ where: { isActive: true, cloudBlocked: true } });
   if (agentWatches.length === 0) return;
-  const health = await agentHealth();
   // Never having connected is a setup state, not an outage.
   if (!health.lastSeenAt || !health.stale || health.staleNotifiedAt) return;
   const hosts = [...new Set(agentWatches.map((w) => new URL(w.url).hostname))];
@@ -63,14 +59,14 @@ async function alertIfAgentDown() {
 
 async function runChecks() {
   const purged = await cleanupOldChecks();
-  await alertIfAgentDown();
+  const agent = await agentHealth();
+  await alertIfAgentDown(agent);
+  // The local agent has a home IP and a browser fingerprint, so it checks
+  // everything while it is alive; the cloud only steps in when it goes quiet.
+  if (!agent.stale) return { purged, checked: 0, skipped: "agent active" };
   const all = await db.watch.findMany({ where: { isActive: true } });
   const now = Date.now();
-  const due = all.filter((w) => {
-    // Hosts that block our IP are handled by the local agent instead.
-    if (isAgentHost(w.url)) return false;
-    return isDue(w, now);
-  });
+  const due = all.filter((w) => isDue(w, now));
   const concurrency = 5;
   let changed = 0;
   let same = 0;

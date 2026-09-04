@@ -110,7 +110,9 @@ export default function WatchControls({
           ? "change detected"
           : data?.status === "error"
             ? "check failed"
-            : "no change";
+            : data?.status === "queued"
+              ? "handed to the local agent"
+              : "no change";
       setCheckMsg(label);
       router.refresh();
     } catch {

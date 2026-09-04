@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { checkAgentAuth } from "@/lib/agent-auth";
-import { isAgentHost } from "@/lib/agent-hosts";
 import { touchAgent } from "@/lib/agent-status";
 import { isDue } from "@/lib/schedule";
 
@@ -18,10 +17,7 @@ export async function GET(req: NextRequest) {
 
   const all = await db.watch.findMany({ where: { isActive: true } });
   const now = Date.now();
-  const due = all.filter((w) => {
-    if (!isAgentHost(w.url)) return false;
-    return isDue(w, now);
-  });
+  const due = all.filter((w) => isDue(w, now));
 
   // Previews are interactive, so they ride along on the poll the agent already
   // makes rather than getting a request of their own.

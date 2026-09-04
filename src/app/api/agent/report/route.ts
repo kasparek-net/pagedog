@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { checkAgentAuth } from "@/lib/agent-auth";
-import { isAgentHost } from "@/lib/agent-hosts";
 import { applyResult } from "@/lib/check-watch";
 import { extractFromHtml, type ExtractResult } from "@/lib/extract";
 
@@ -29,9 +28,6 @@ export async function POST(req: NextRequest) {
 
   const watch = await db.watch.findUnique({ where: { id: watchId } });
   if (!watch) return NextResponse.json({ error: "not found" }, { status: 404 });
-  if (!isAgentHost(watch.url)) {
-    return NextResponse.json({ error: "watch is not agent-handled" }, { status: 409 });
-  }
 
   const result: ExtractResult =
     html !== null

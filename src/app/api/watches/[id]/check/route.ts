@@ -3,6 +3,7 @@ import { getSessionEmail } from "@/lib/session";
 import { db } from "@/lib/db";
 import { processWatch } from "@/lib/check-watch";
 import { rateLimit } from "@/lib/rate-limit";
+import { agentHealth } from "@/lib/agent-status";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -23,6 +24,13 @@ export async function POST(
       { error: "Too many checks. Try again in a few seconds." },
       { status: 429 },
     );
+  }
+
+  // The cloud cannot fetch this one; making it due lets the agent pick it up
+  // on its next poll instead of logging a pointless failure here.
+  if (watch.cloudBlocked && !(await agentHealth()).stale) {
+    await db.watch.update({ where: { id }, data: { lastCheckedAt: null } });
+    return NextResponse.json({ status: "queued" });
   }
 
   const status = await processWatch(watch);

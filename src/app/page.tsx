@@ -3,7 +3,6 @@ import { db } from "@/lib/db";
 import { getSessionEmail } from "@/lib/session";
 import { WatchRow } from "@/components/watch-row";
 import { seriesFromChanges } from "@/lib/numeric";
-import { isAgentHost } from "@/lib/agent-hosts";
 import { agentHealth } from "@/lib/agent-status";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +41,7 @@ export default async function HomePage() {
     },
   });
 
-  const agentWatches = watches.filter((w) => w.isActive && isAgentHost(w.url));
+  const agentWatches = watches.filter((w) => w.isActive && w.cloudBlocked);
   const agent = agentWatches.length > 0 ? await agentHealth() : null;
 
   return (
