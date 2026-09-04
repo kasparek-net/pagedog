@@ -46,26 +46,42 @@ export async function sendChangeNotification(input: {
   oldValue: string;
   newValue: string;
   watchId: string;
+  // Extra colour for the "Now" line: the price next to an availability, how
+  // far a price moved, whether it is the lowest this watch has ever seen.
+  price?: string | null;
+  deltaPct?: number | null;
+  isLowest?: boolean;
+  buyable?: boolean;
 }) {
   if (!resend) {
     console.warn("[email] RESEND_API_KEY not set, skipping send");
     return;
   }
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
-  const subject = `🔔 Change detected: ${input.label}`;
+  const extras: string[] = [];
+  if (input.price) extras.push(input.price);
+  if (input.deltaPct !== null && input.deltaPct !== undefined && input.deltaPct !== 0) {
+    const abs = Math.abs(input.deltaPct);
+    extras.push(`${input.deltaPct < 0 ? "↓" : "↑"} ${abs < 10 ? abs.toFixed(1) : Math.round(abs)} %`);
+  }
+  if (input.isLowest) extras.push("lowest ever");
+  const nowLine = extras.length ? `${input.newValue} · ${extras.join(" · ")}` : input.newValue;
+  const emoji = input.buyable ? "🛒" : input.isLowest ? "📉" : "🔔";
+  const subject = `${emoji} ${input.buyable ? "Available" : input.isLowest ? "Lowest price" : "Change detected"}: ${input.label}`;
+  const cta = input.buyable ? "Buy now" : "Open page";
   const html = `
 <!doctype html>
 <html><head><meta charset="utf-8"></head><body style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#0a0a0a;max-width:560px;margin:0 auto;padding:24px">
-  <h2 style="margin:0 0 8px">🔔 ${escape(input.label)}</h2>
-  <p style="margin:0 0 16px;color:#525252">A change was detected on the watched page.</p>
+  <h2 style="margin:0 0 8px">${emoji} ${escape(input.label)}</h2>
+  <p style="margin:0 0 16px;color:#525252">${input.buyable ? "The product can be ordered now." : "A change was detected on the watched page."}</p>
   <table style="width:100%;border-collapse:collapse;margin:16px 0">
     <tr><td style="padding:8px;background:#fafafa;border:1px solid #e5e5e5;width:80px;font-size:12px;color:#737373">Was</td><td style="padding:8px;border:1px solid #e5e5e5">${escape(input.oldValue)}</td></tr>
-    <tr><td style="padding:8px;background:#fafafa;border:1px solid #e5e5e5;font-size:12px;color:#737373">Now</td><td style="padding:8px;border:1px solid #e5e5e5"><strong>${escape(input.newValue)}</strong></td></tr>
+    <tr><td style="padding:8px;background:#fafafa;border:1px solid #e5e5e5;font-size:12px;color:#737373">Now</td><td style="padding:8px;border:1px solid #e5e5e5"><strong>${escape(nowLine)}</strong></td></tr>
   </table>
-  <p style="margin:24px 0 8px"><a href="${escape(input.url)}" style="display:inline-block;background:#eabf43;color:#0a0a0a;padding:8px 14px;border-radius:6px;text-decoration:none;font-weight:500">Open page</a></p>
+  <p style="margin:24px 0 8px"><a href="${escape(input.url)}" style="display:inline-block;background:#eabf43;color:#0a0a0a;padding:8px 14px;border-radius:6px;text-decoration:none;font-weight:500">${cta}</a></p>
   <p style="margin:16px 0 0"><a href="${escape(appUrl)}/watches/${input.watchId}" style="color:#737373;font-size:12px">View in Pagedog →</a></p>
 </body></html>`;
-  const text = `Change detected: ${input.label}\n\nWas: ${input.oldValue}\nNow: ${input.newValue}\n\nPage: ${input.url}\nDetails: ${appUrl}/watches/${input.watchId}\n`;
+  const text = `${subject}\n\nWas: ${input.oldValue}\nNow: ${nowLine}\n\n${cta}: ${input.url}\nDetails: ${appUrl}/watches/${input.watchId}\n`;
   await resend.emails.send({
     from,
     to: input.to,

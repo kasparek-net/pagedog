@@ -39,7 +39,7 @@ export async function processWatch(watch: ProcessInput): Promise<ProcessResult> 
   });
   const cloudBlocked =
     !result.ok && result.kind === "fetch" && /^HTTP (403|429|503)\b/.test(result.error);
-  return applyResult(watch, result, Date.now() - t0, { cloudBlocked });
+  return applyResult(watch, result, Date.now() - t0, { cloudBlocked, lastCheckedVia: "cloud" });
 }
 
 // Split out so the local agent can report a page it fetched itself: extraction
@@ -48,7 +48,7 @@ export async function applyResult(
   watch: ProcessInput,
   result: ExtractResult,
   durationMs: number,
-  extra: { cloudBlocked?: boolean } = {},
+  extra: { cloudBlocked?: boolean; lastCheckedVia?: "cloud" | "agent" } = {},
 ): Promise<ProcessResult> {
   if (!result.ok) {
     const isSelectorGone =
@@ -144,9 +144,17 @@ export async function applyResult(
       type: watch.conditionType as ConditionType,
       value: watch.conditionValue,
     };
-    const historyMin = cond.type === "lowest" ? await historyMinimum(watch.id, watch.lastValue) : null;
+    const numeric = isNumericValue(result.value) && isNumericValue(watch.lastValue);
+    const historyMin =
+      numeric || cond.type === "lowest" ? await historyMinimum(watch.id, watch.lastValue) : null;
     const shouldEmail = evaluateTransition(watch.lastValue, result.value, cond, historyMin);
     if (shouldEmail) {
+      const oldN = numeric ? parseNumber(watch.lastValue) : null;
+      const newN = numeric ? parseNumber(result.value) : null;
+      const deltaPct = oldN !== null && newN !== null && oldN !== 0 ? ((newN - oldN) / Math.abs(oldN)) * 100 : null;
+      const isLowest = newN !== null && historyMin !== null && newN < historyMin;
+      const tone = watch.selector === "@availability" ? availabilityTone(result.value) : null;
+      const price = watch.selector === "@availability" ? (result.meta?.price ?? null) : null;
       try {
         await sendChangeNotification({
           to: watch.notifyEmail,
@@ -155,17 +163,24 @@ export async function applyResult(
           oldValue: watch.lastValue,
           newValue: result.value,
           watchId: watch.id,
+          price,
+          deltaPct,
+          isLowest,
+          buyable: tone === "good",
         });
       } catch (e) {
         console.error("[check-watch] email send failed", e);
       }
-      const tone = watch.selector === "@availability" ? availabilityTone(result.value) : null;
+      const bits = [result.value];
+      if (price) bits.push(price);
+      if (deltaPct !== null && deltaPct !== 0) bits.push(`${deltaPct < 0 ? "↓" : "↑"} ${Math.abs(deltaPct) < 10 ? Math.abs(deltaPct).toFixed(1) : Math.round(Math.abs(deltaPct))} %`);
+      if (isLowest) bits.push("lowest ever");
       await pushTo(watch.userId, {
-        title: watch.label,
-        message: `${watch.lastValue} → ${result.value}`,
+        title: tone === "good" ? `Available: ${watch.label}` : isLowest ? `Lowest price: ${watch.label}` : watch.label,
+        message: `${watch.lastValue} → ${bits.join(" · ")}`,
         click: watch.url,
-        priority: tone === "good" ? 4 : 3,
-        tags: [tone === "good" ? "white_check_mark" : tone === "bad" ? "x" : "bell"],
+        priority: tone === "good" || isLowest ? 4 : 3,
+        tags: [tone === "good" ? "shopping_cart" : tone === "bad" ? "x" : isLowest ? "chart_with_downwards_trend" : "bell"],
       });
     }
   }

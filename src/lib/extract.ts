@@ -14,6 +14,8 @@ export type ExtractResult =
       hash: string;
       imageUrl: string | null;
       faviconUrl: string | null;
+      // What else the product page said, for richer notifications.
+      meta?: { price: string | null; availability: string | null };
     }
   | { ok: false; error: string; kind: ExtractErrorKind };
 
@@ -201,6 +203,7 @@ export function extractFromHtml(
         ? (extractOgImage($, baseUrl) ?? resolveImageUrl(product.image ?? undefined, baseUrl))
         : null,
       faviconUrl: baseUrl ? extractFavicon($, baseUrl) : null,
+      meta: { price: product.price, availability: product.availability },
     };
   }
   let el;

@@ -34,6 +34,6 @@ export async function POST(req: NextRequest) {
       ? extractFromHtml(html, watch.selector, watch.url)
       : { ok: false, error: fetchError!, kind: "fetch" };
 
-  const outcome = await applyResult(watch, result, durationMs);
+  const outcome = await applyResult(watch, result, durationMs, { lastCheckedVia: "agent" });
   return NextResponse.json({ result: outcome });
 }
