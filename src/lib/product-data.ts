@@ -31,6 +31,17 @@ const AVAILABILITY_LABELS: Record<string, string> = {
   limitedavailability: "Limited availability",
 };
 
+export type AvailabilityTone = "good" | "bad" | "neutral";
+
+// For colouring an @availability value: buyable now, not buyable, or in
+// between (pre-order and friends).
+export function availabilityTone(value: string): AvailabilityTone {
+  const v = value.toLowerCase();
+  if (/(^|\b)(in stock|in store only|online only|limited availability)/.test(v)) return "good";
+  if (/(out of stock|sold out|discontinued|back-order)/.test(v)) return "bad";
+  return "neutral";
+}
+
 export function productFromHtml(html: string): ProductData {
   const $ = cheerio.load(html);
   for (const el of $('script[type="application/ld+json"]').toArray()) {

@@ -82,6 +82,7 @@ export default async function HomePage() {
                 id: w.id,
                 label: w.label,
                 url: w.url,
+                selector: w.selector,
                 isActive: w.isActive,
                 intervalMinutes: w.intervalMinutes,
                 lastValue: w.lastValue,

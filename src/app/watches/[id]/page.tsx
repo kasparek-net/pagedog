@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AvailabilityPill } from "@/components/availability-pill";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSessionEmail } from "@/lib/session";
@@ -62,12 +63,20 @@ export default async function WatchDetail({
       </div>
 
       <div className="grid sm:grid-cols-2 gap-3">
-        <Box title="CSS selector">
-          <code className="font-mono text-xs break-all">{watch.selector}</code>
+        <Box title={watch.selector.startsWith("@") ? "Tracked field" : "CSS selector"}>
+          {watch.selector === "@availability" ? (
+            <span className="text-sm">Product availability</span>
+          ) : watch.selector === "@price" ? (
+            <span className="text-sm">Product price</span>
+          ) : (
+            <code className="font-mono text-xs break-all">{watch.selector}</code>
+          )}
         </Box>
         <Box title="Current value">
           {watch.lastError ? (
             <span className="text-red-600 text-sm">{watch.lastError}</span>
+          ) : watch.lastValue && watch.selector === "@availability" ? (
+            <AvailabilityPill value={watch.lastValue} size="md" />
           ) : (
             <span className="font-mono text-sm break-all">
               {watch.lastValue ?? "—"}

@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Countdown } from "./countdown";
 import { Sparkline } from "./sparkline";
+import { AvailabilityPill } from "./availability-pill";
 import { intervalShort, shortenUrl } from "@/lib/format";
 import { formatDeltaPct, summarizeSeries, type NumericPoint } from "@/lib/numeric";
 
@@ -12,6 +13,7 @@ type Watch = {
   id: string;
   label: string;
   url: string;
+  selector: string;
   isActive: boolean;
   intervalMinutes: number;
   lastValue: string | null;
@@ -150,7 +152,12 @@ export function WatchRow({ watch }: { watch: Watch }) {
               every {intervalShort(watch.intervalMinutes)} ·{" "}
               {watch.changeCount} {watch.changeCount === 1 ? "change" : "changes"}
             </div>
-            {!numeric && watch.lastValue && (
+            {!numeric && watch.lastValue && watch.selector === "@availability" && (
+              <div className="mt-1">
+                <AvailabilityPill value={watch.lastValue} />
+              </div>
+            )}
+            {!numeric && watch.lastValue && watch.selector !== "@availability" && (
               <div className="font-mono text-xs text-neutral-700 dark:text-neutral-300 truncate max-w-xs mt-0.5">
                 {watch.lastValue}
               </div>
