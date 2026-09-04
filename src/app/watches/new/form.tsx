@@ -22,6 +22,7 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [selector, setSelector] = useState("");
   const [pickedText, setPickedText] = useState("");
+  const [product, setProduct] = useState<{ price: string | null; availability: string | null } | null>(null);
   const [label, setLabel] = useState("");
   const [email, setEmail] = useState(defaultEmail);
   const [intervalMinutes, setIntervalMinutes] = useState(60);
@@ -78,6 +79,7 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
     setLoadingPreview(true);
     setPreviewError(null);
     setPreviewHtml(null);
+    setProduct(null);
     setSelector("");
     setPickedText("");
     setTest({ status: "idle" });
@@ -92,6 +94,13 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
         setLoadedUrl(url);
         setDefaultLabel(url);
         return;
+      }
+      const raw = res.headers.get("x-pagedog-product");
+      if (raw) {
+        try {
+          const p = JSON.parse(decodeURIComponent(raw));
+          if (p.price || p.availability) setProduct(p);
+        } catch {}
       }
       const html = await res.text();
       setPreviewHtml(html);
@@ -179,6 +188,31 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
                 : "The page could not be loaded here, so type the CSS selector yourself."
             }
           >
+            {product && (
+              <div className="mb-4 rounded-lg border border-brand/40 bg-brand/5 px-3 py-3">
+                <div className="text-xs text-neutral-600 dark:text-neutral-400 mb-2">
+                  This is a product page — track it without picking anything:
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {product.price && (
+                    <ProductChoice
+                      active={selector === "@price"}
+                      onClick={() => setSelector("@price")}
+                      title="Price"
+                      value={product.price}
+                    />
+                  )}
+                  {product.availability && (
+                    <ProductChoice
+                      active={selector === "@availability"}
+                      onClick={() => setSelector("@availability")}
+                      title="Availability"
+                      value={product.availability}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
             {previewHtml ? (
               <>
                 <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden bg-white shadow-sm">
@@ -284,6 +318,34 @@ export default function NewWatchForm({ defaultEmail }: { defaultEmail: string })
         </>
       )}
     </div>
+  );
+}
+
+function ProductChoice({
+  active,
+  onClick,
+  title,
+  value,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  value: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "rounded-md border px-3 py-2 text-left transition " +
+        (active
+          ? "border-brand bg-brand text-black"
+          : "border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800")
+      }
+    >
+      <div className="text-xs opacity-70">{title}</div>
+      <div className="text-sm font-medium">{value}</div>
+    </button>
   );
 }
 

@@ -6,6 +6,7 @@ import { fetchTrackedPrice, formatTrackedPrice } from "@/lib/price-tracker";
 import { rateLimit } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 import { isAgentHost } from "@/lib/agent-hosts";
+import { productFromHtml } from "@/lib/product-data";
 import { PICKER_JS } from "@/lib/picker-source";
 
 export const runtime = "nodejs";
@@ -135,6 +136,9 @@ export async function GET(req: NextRequest) {
       "Content-Security-Policy":
         "default-src 'self' data: blob: http: https:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' http: https:; img-src * data: blob:; font-src * data:;",
       "X-Frame-Options": "SAMEORIGIN",
+      // Ride along with the preview so the form can offer price and
+      // availability without making the agent fetch the page a second time.
+      "x-pagedog-product": encodeURIComponent(JSON.stringify(productFromHtml(html))),
     },
   });
 }

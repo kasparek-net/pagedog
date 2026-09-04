@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import { fetchTrackedPrice, formatTrackedPrice } from "@/lib/price-tracker";
+import { productFromHtml, isProductField } from "@/lib/product-data";
 import { createHash } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
@@ -184,6 +185,21 @@ export function extractFromHtml(
     $ = cheerio.load(html);
   } catch {
     return { ok: false, error: "HTML parse error", kind: "fetch" };
+  }
+  if (isProductField(selector)) {
+    const product = productFromHtml(html);
+    const value = selector === "@price" ? product.price : product.availability;
+    if (!value) {
+      const what = selector === "@price" ? "price" : "availability";
+      return { ok: false, error: `The page no longer publishes a ${what}`, kind: "selector" };
+    }
+    return {
+      ok: true,
+      value,
+      hash: sha256(value),
+      imageUrl: baseUrl ? extractOgImage($, baseUrl) : null,
+      faviconUrl: baseUrl ? extractFavicon($, baseUrl) : null,
+    };
   }
   let el;
   try {
