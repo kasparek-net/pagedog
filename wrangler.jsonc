@@ -8,6 +8,13 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  // Custom domains: Cloudflare manages the DNS records and certificates for
+  // these; the zone must be on this account and the hostnames free of other
+  // records before the first deploy.
+  "routes": [
+    { "pattern": "www.pagedog.xyz", "custom_domain": true },
+    { "pattern": "pagedog.xyz", "custom_domain": true }
+  ],
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
