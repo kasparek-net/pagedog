@@ -48,7 +48,12 @@ export default async function HomePage() {
     <div>
       <div className="flex items-baseline justify-between mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Watches</h1>
-        <span className="text-sm text-neutral-500 truncate max-w-[200px]">{email}</span>
+        <div className="flex items-baseline gap-4">
+          <Link href="/watches/import" className="text-sm text-neutral-500 hover:underline">
+            Import links
+          </Link>
+          <span className="text-sm text-neutral-500 truncate max-w-[200px]">{email}</span>
+        </div>
       </div>
       {agent?.stale && (
         <div className="mb-4 rounded-lg border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm text-red-800 dark:text-red-200">

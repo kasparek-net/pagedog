@@ -1,37 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { getSessionEmail } from "@/lib/session";
-import { fetchHtml, extractFromHtml, assertPublicHost, isBotBlock } from "@/lib/extract";
+import { extractFromHtml, assertPublicHost, isBotBlock } from "@/lib/extract";
 import { fetchTrackedPrice, formatTrackedPrice } from "@/lib/price-tracker";
 import { rateLimit } from "@/lib/rate-limit";
-import { db } from "@/lib/db";
-import { agentHealth } from "@/lib/agent-status";
+import { fetchPageAnywhere } from "@/lib/fetch-page";
 import { productFromHtml } from "@/lib/product-data";
 import { PICKER_JS } from "@/lib/picker-source";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-
-const AGENT_PREVIEW_TIMEOUT_MS = 45_000;
-const AGENT_PREVIEW_POLL_MS = 1_000;
-
-// Hosts the agent owns cannot be fetched here at all, so the page is queued for
-// it and we wait for the HTML to come back.
-async function fetchViaAgent(url: string): Promise<string> {
-  const job = await db.previewJob.create({ data: { url } });
-  const deadline = Date.now() + AGENT_PREVIEW_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, AGENT_PREVIEW_POLL_MS));
-    const current = await db.previewJob.findUnique({ where: { id: job.id } });
-    if (!current?.doneAt) continue;
-    // Each job carries a whole page; nothing needs it once it has been read.
-    db.previewJob.delete({ where: { id: job.id } }).catch(() => {});
-    if (current.html) return current.html;
-    throw new Error(current.error ?? "Agent could not fetch the page");
-  }
-  throw new Error("The local agent did not answer in time");
-}
 
 function buildHighlightScript(selector: string): string {
   const safe = JSON.stringify(selector);
@@ -79,21 +58,12 @@ export async function GET(req: NextRequest) {
 
   let html: string;
   try {
-    html = await fetchHtml(url.toString());
+    html = await fetchPageAnywhere(url.toString());
   } catch (e) {
     const status = e instanceof Error ? e.message : "Fetch failed";
-    // Blocked here, but the local agent fetches from a network the shop
-    // accepts — so ask it, and only give up if it is not around.
-    if (isBotBlock(e) && !(await agentHealth()).stale) {
-      try {
-        html = await fetchViaAgent(url.toString());
-      } catch (agentError) {
-        return NextResponse.json(
-          { error: agentError instanceof Error ? agentError.message : "Agent fetch failed" },
-          { status: 502 },
-        );
-      }
-    } else if (isBotBlock(e)) {
+    // Blocked here and no agent around to ask: a watch on it may still work
+    // through the price tracker, so say so instead of a bare 403.
+    if (isBotBlock(e)) {
       const tracked = await fetchTrackedPrice(url.toString());
       return NextResponse.json(
         {
