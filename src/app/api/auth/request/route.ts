@@ -49,16 +49,14 @@ export async function POST(req: NextRequest) {
   const link = `${appUrl}/api/auth/verify?token=${encodeURIComponent(token)}`;
 
   const code = generateOtp();
-  await db.$transaction([
-    db.signInCode.deleteMany({ where: { email } }),
-    db.signInCode.create({
+  await db.signInCode.deleteMany({ where: { email } });
+  await db.signInCode.create({
       data: {
         email,
         codeHash: hashOtp(code, email),
         expiresAt: new Date(Date.now() + OTP_TTL_MS),
       },
-    }),
-  ]);
+    });
 
   try {
     await sendMagicLink({ to: email, url: link, code, appUrl });

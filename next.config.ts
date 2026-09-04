@@ -1,11 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Prisma's runtime is traced as an external package; without these
-  // excludes the trace drags in the CLI and every database engine, and the
-  // Cloudflare bundle then ships ~10 MB of wasm this app never loads. Only
-  // the Postgres query compiler generated into src/generated is used.
-  serverExternalPackages: ["@prisma/client"],
+  // Without these excludes the output trace drags in the Prisma CLI and
+  // every database engine, and the Cloudflare bundle then ships ~10 MB of
+  // wasm this app never loads. Only the Postgres query compiler generated
+  // into src/generated is used. (Marking @prisma/client as an external
+  // package made Vercel trace all of node_modules — 700 MB — so it is not.)
   outputFileTracingExcludes: {
     "*": [
       "./node_modules/prisma/**",

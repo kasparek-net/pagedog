@@ -54,3 +54,4 @@ cloudflare-env.d.ts
 
 # Prisma client is generated at build time
 src/generated
+prisma/.generated.prisma

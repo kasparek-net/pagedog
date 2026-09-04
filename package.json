@@ -4,15 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && eslint src && next build",
+    "build": "node scripts/prisma-generate.mjs && eslint src && next build",
     "start": "next start",
     "lint": "eslint src",
-    "postinstall": "prisma generate",
+    "postinstall": "node scripts/prisma-generate.mjs",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "cf:build": "prisma generate && eslint src && opennextjs-cloudflare build",
+    "cf:build": "PRISMA_RUNTIME=workerd opennextjs-cloudflare build",
     "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
-    "cf:deploy": "npm run cf:build && opennextjs-cloudflare deploy",
+    "cf:deploy": "npm run cf:build && wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {

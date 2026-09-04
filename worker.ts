@@ -15,6 +15,7 @@ export default {
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
     const base = (env.APP_URL ?? "https://pagedog.internal").replace(/\/$/, "");
     const req = new Request(`${base}/api/cron/check`, {
+      method: "POST",
       headers: { authorization: `Bearer ${env.CRON_SECRET ?? ""}` },
     });
     ctx.waitUntil(

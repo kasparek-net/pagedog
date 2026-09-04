@@ -54,8 +54,7 @@ export async function applyResult(
     const isSelectorGone =
       result.kind === "selector" && watch.lastHash !== null && watch.lastValue !== null;
     const failStreak = watch.failStreak + 1;
-    await db.$transaction([
-      db.watch.update({
+    await db.watch.update({
         where: { id: watch.id },
         data: {
           lastCheckedAt: new Date(),
@@ -64,11 +63,10 @@ export async function applyResult(
           ...extra,
           ...(isSelectorGone ? { isActive: false } : {}),
         },
-      }),
-      db.check.create({
+      });
+    await db.check.create({
         data: { watchId: watch.id, status: "error", error: result.error, durationMs },
-      }),
-    ]);
+      });
     if (isSelectorGone) {
       try {
         await sendSelectorGoneNotification({
@@ -114,8 +112,7 @@ export async function applyResult(
     return "error";
   }
   if (watch.lastHash === result.hash) {
-    await db.$transaction([
-      db.watch.update({
+    await db.watch.update({
         where: { id: watch.id },
         data: {
           lastCheckedAt: new Date(),
@@ -125,11 +122,10 @@ export async function applyResult(
           imageUrl: result.imageUrl === watch.imageUrl ? undefined : result.imageUrl,
           faviconUrl: result.faviconUrl === watch.faviconUrl ? undefined : result.faviconUrl,
         },
-      }),
-      db.check.create({
+      });
+    await db.check.create({
         data: { watchId: watch.id, status: "same", value: result.value, durationMs },
-      }),
-    ]);
+      });
     return "same";
   }
   if (watch.lastHash !== null && watch.lastValue !== null) {
@@ -184,8 +180,7 @@ export async function applyResult(
       });
     }
   }
-  await db.$transaction([
-    db.watch.update({
+  await db.watch.update({
       where: { id: watch.id },
       data: {
         lastCheckedAt: new Date(),
@@ -197,11 +192,10 @@ export async function applyResult(
         imageUrl: result.imageUrl,
         faviconUrl: result.faviconUrl,
       },
-    }),
-    db.check.create({
+    });
+  await db.check.create({
       data: { watchId: watch.id, status: "changed", value: result.value, durationMs },
-    }),
-  ]);
+    });
   return "changed";
 }
 
