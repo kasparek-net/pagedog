@@ -142,9 +142,12 @@ export async function assertPublicHost(hostname: string): Promise<void> {
   }
   // resolve4/resolve6 rather than lookup: Workers implement the former over
   // DNS-over-HTTPS and not the latter, and both work the same on Node.
-  const addresses = (
+  const answers = (
     await Promise.all([resolve4(hostname).catch(() => []), resolve6(hostname).catch(() => [])])
   ).flat();
+  // Workers hands back the CNAME names of the chain alongside the addresses;
+  // those are not IPs and must not be judged as one.
+  const addresses = answers.filter((a) => isIP(a) !== 0);
   if (addresses.length === 0) throw new Error("Cannot resolve host");
   for (const address of addresses) {
     if (isPrivateIp(address)) throw new Error("Resolves to private IP");
