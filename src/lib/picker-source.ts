@@ -13,14 +13,16 @@ export const PICKER_JS = String.raw`(function () {
   var hovered = null;
   var picked = null;
   var lastChild = null;
-  var bannersHidden = false;
+  var bannersHidden = true;
 
   var css = [
     "." + HOVER + "{outline:2px solid #ef4444!important;outline-offset:1px;cursor:crosshair!important;background:rgba(239,68,68,0.06)!important}",
     "." + PICKED + "{outline:3px solid #eabf43!important;outline-offset:2px}",
     "html:not(.__wd_paused__),html:not(.__wd_paused__) body{cursor:crosshair!important}",
     "html:not(.__wd_paused__) a,html:not(.__wd_paused__) button{pointer-events:none!important}",
-    "html.__wd_banhide__ [class*='cookie' i],html.__wd_banhide__ [class*='consent' i],html.__wd_banhide__ [class*='gdpr' i],html.__wd_banhide__ [class*='banner' i],html.__wd_banhide__ [id*='cookie' i],html.__wd_banhide__ [id*='consent' i],html.__wd_banhide__ [id*='banner' i]{display:none!important}",
+    "html.__wd_banhide__ [class*='cookie' i],html.__wd_banhide__ [class*='consent' i],html.__wd_banhide__ [class*='gdpr' i],html.__wd_banhide__ [class*='banner' i],html.__wd_banhide__ [class*='backdrop' i],html.__wd_banhide__ [id*='cookie' i],html.__wd_banhide__ [id*='consent' i],html.__wd_banhide__ [id*='banner' i]{display:none!important}",
+    // A consent modal usually locks scrolling; hiding it has to give that back.
+    "html.__wd_banhide__,html.__wd_banhide__ body{overflow:auto!important}",
     "#__wd_top__,#__wd_bar__{position:fixed;left:50%;transform:translateX(-50%);z-index:2147483647;color:#fff;cursor:default!important;font-family:-apple-system,system-ui,sans-serif!important;box-sizing:border-box}",
     "#__wd_top__ *,#__wd_bar__ *{cursor:default!important;pointer-events:auto!important;box-sizing:border-box;color:inherit;font-family:inherit}",
     "#__wd_top__{top:12px;background:rgba(10,10,10,0.92);padding:6px 14px;border-radius:999px;font-size:12px;display:flex;gap:6px;align-items:center;max-width:calc(100vw - 24px);flex-wrap:wrap;justify-content:center}",
@@ -38,6 +40,9 @@ export const PICKER_JS = String.raw`(function () {
   var styleEl = document.createElement("style");
   styleEl.textContent = css;
   document.documentElement.appendChild(styleEl);
+  // Consent overlays cover the page the moment it loads, so start with them
+  // hidden; the Banners button brings them back.
+  document.documentElement.classList.add("__wd_banhide__");
 
   function el(tag, props, children) {
     var n = document.createElement(tag);
@@ -69,7 +74,7 @@ export const PICKER_JS = String.raw`(function () {
     function k(label) { return el("kbd", { text: label }); }
     function s(t) { return el("span", { text: t }); }
     return el("div", { id: "__wd_top__" }, [
-      s("Click an element."), k("ESC"), s("clear"), k("\u2191\u2193"), s("parent/child"), k("B"), s("hide banners"), k("P"), s("pause"), k("\u23CE"), s("use")
+      s("Click an element."), k("ESC"), s("clear"), k("\u2191\u2193"), s("parent/child"), k("B"), s("banners"), k("P"), s("pause"), k("\u23CE"), s("use")
     ]);
   }
 
@@ -79,7 +84,7 @@ export const PICKER_JS = String.raw`(function () {
   countEl.style.display = "none";
   var upBtn = makeBtn("__wd_up", "\u2191 Parent", "Select the parent element ([)");
   var downBtn = makeBtn("__wd_down", "\u2193 Child", "Select the child element (])");
-  var banBtn = makeBtn("__wd_ban", "Banners", "Hide cookie/banner overlays (B)", false);
+  var banBtn = makeBtn("__wd_ban", "Show banners", "Show cookie/banner overlays again (B)", false);
   var pauseBtn = makeBtn("__wd_pause", "Pause", "Pause picker so you can scroll/click (P)", false);
   var useBtn = makeBtn("__wd_use", "✓ Use", "Confirm selection (Enter)");
   var bar = el("div", { id: "__wd_bar__" }, [labelEl, textEl, countEl, upBtn, downBtn, banBtn, pauseBtn, useBtn]);
@@ -177,7 +182,7 @@ export const PICKER_JS = String.raw`(function () {
   function toggleBanners() {
     bannersHidden = !bannersHidden;
     document.documentElement.classList.toggle("__wd_banhide__", bannersHidden);
-    banBtn.textContent = bannersHidden ? "Show banners" : "Banners";
+    banBtn.textContent = bannersHidden ? "Show banners" : "Hide banners";
   }
 
   function togglePause() {
