@@ -6,10 +6,12 @@ generator client {
   engineType      = "client"
 }
 
+// Cloudflare D1. The url is only for the Prisma CLI; at runtime the client
+// talks to the D1 binding through @prisma/adapter-d1 (src/lib/db.ts), and
+// schema changes go out as SQL files in migrations/ via wrangler.
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DATABASE_URL_UNPOOLED")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model Watch {

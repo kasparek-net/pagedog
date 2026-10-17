@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+
+// Gives `next dev` the bindings from wrangler.jsonc (the D1 database).
+initOpenNextCloudflareForDev();
 
 // The Cloudflare build (PRISMA_RUNTIME=workerd, see scripts/prisma-generate.mjs)
 // bundles everything the output trace lists, and without these excludes the

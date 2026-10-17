@@ -15,6 +15,14 @@
     { "pattern": "www.pagedog.xyz", "custom_domain": true },
     { "pattern": "pagedog.xyz", "custom_domain": true }
   ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pagedog",
+      "database_id": "8ed30fb6-1788-41db-880e-805b5c420aac",
+      "migrations_dir": "migrations"
+    }
+  ],
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",

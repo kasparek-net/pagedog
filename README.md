@@ -4,9 +4,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
 [![Built with Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](https://nextjs.org)
-[![Deploy on Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/kasparek-net/pagedog)
 
-> This is a template for your own self-hosted instance. **I don't run a public hosted version** — fork it and deploy your own (free on Vercel + Neon + Resend).
+> This is a template for your own self-hosted instance. **I don't run a public hosted version** — fork it and deploy your own (Cloudflare Workers + D1 + Resend).
 
 Self-hosted website change watcher. Paste a URL, click the element you want to track, and Pagedog checks it every hour. When the text changes, you get an email. Product back-in-stock alerts, price drops, status page changes — without paying Visualping or Distill.io every month.
 
@@ -19,15 +18,15 @@ Self-hosted website change watcher. Paste a URL, click the element you want to t
 ## Features
 
 - 🖱 **Visual picker** — hover inside the page preview, click, and the app remembers a unique CSS selector.
-- ⏰ **Hourly checks** via GitHub Actions cron (free).
+- ⏰ **Scheduled checks** via a Cloudflare cron trigger.
 - 📧 **Email notifications** via Resend (3,000 emails/month on the free tier).
 - 👥 **Multi-user** — each user has their own watches and notification email. Sign-in is a passwordless magic link (no passwords to store); access is gated by an `ALLOWED_EMAILS` allowlist so only you (or whoever you invite) can sign up.
 - 🔒 **Safe defaults** — sandboxed iframe picker, SSRF protection with DNS-rebind check, per-user rate limits, timing-safe cron secret, HMAC-signed session cookies.
-- 💸 **Free forever** on Vercel Hobby + Neon free tier + Resend free tier.
+- 💸 **Cheap to run** on Cloudflare Workers + D1 + the Resend free tier.
 
 ## Stack
 
-Next.js 16 (App Router) · TypeScript · Tailwind v4 · Prisma · Postgres · Resend · cheerio. Auth is a small in-house magic-link flow (HMAC-signed tokens, no third-party dependency).
+Next.js 16 (App Router) · TypeScript · Tailwind v4 · Prisma · Cloudflare D1 (SQLite) · Resend · cheerio. Auth is a small in-house magic-link flow (HMAC-signed tokens, no third-party dependency).
 
 ## Quick start (local)
 
@@ -36,8 +35,8 @@ git clone https://github.com/kasparek-net/pagedog
 cd pagedog
 npm install
 cp .env.example .env
-# fill in DATABASE_URL, AUTH_SECRET, ALLOWED_EMAILS, RESEND_API_KEY, CRON_SECRET
-npm run db:push          # creates tables in your DB
+# fill in AUTH_SECRET, ALLOWED_EMAILS, RESEND_API_KEY, CRON_SECRET
+npm run db:migrate:local # creates tables in the local D1 (.wrangler/state)
 npm run dev
 ```
 
@@ -50,18 +49,17 @@ curl -X POST http://localhost:3000/api/cron/check \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 
-## Deploy to Vercel
+## Deploy to Cloudflare
 
-1. Fork this repo and connect it to Vercel (or click "Deploy on Vercel" above).
-2. Vercel Marketplace → add **Neon Postgres** and **Resend** (env vars are wired automatically).
-3. Add the remaining env vars in Vercel → Project → Settings → Environment Variables:
+1. Fork this repo. `npx wrangler d1 create pagedog` and put the returned `database_id` into `wrangler.jsonc`.
+2. `npm run db:migrate:remote` creates the tables.
+3. Set the secrets with `npx wrangler secret put NAME`:
    - `AUTH_SECRET` (`openssl rand -hex 32`) — HMAC key for magic links and sessions
    - `ALLOWED_EMAILS` — comma-separated list of emails allowed to sign in
    - `CRON_SECRET` (`openssl rand -hex 32`) — bearer token for `/api/cron/check`
-   - `APP_URL` (e.g. `https://pagedog.vercel.app`) — used in emailed links
-   - `RESEND_FROM` — sender identity, e.g. `Pagedog <noreply@yourdomain.tld>`
-4. After the first deploy: `vercel env pull && npm run db:push`.
-5. GitHub repo → Settings → Secrets and variables → Actions → add `APP_URL` and `CRON_SECRET`. The `.github/workflows/cron.yml` workflow will then hit `/api/cron/check` every hour.
+   - `APP_URL` (e.g. `https://pagedog.example.com`) — used in emailed links
+   - `RESEND_API_KEY`, `RESEND_FROM` — e.g. `Pagedog <noreply@yourdomain.tld>`
+4. `npm run cf:deploy`, or connect the repo in Workers Builds (build `npm run cf:build`, deploy `npx wrangler deploy`). The cron trigger in `wrangler.jsonc` hits `/api/cron/check` every 5 minutes.
 
 ## Auth flow
 
@@ -79,7 +77,7 @@ Limitation: client-rendered SPAs (React/Vue) don't hydrate inside the sandboxed 
 
 ## Cron flow
 
-1. GitHub Actions (hourly) → `POST /api/cron/check` with a bearer token.
+1. The Cloudflare cron trigger (`worker.ts`) → `POST /api/cron/check` with a bearer token.
 2. The endpoint loads all active watches and fetches them in parallel (concurrency 5) using cheerio to extract the selected element.
 3. It hashes the extracted text (SHA-256). If the hash differs from `lastHash`, it creates a `Change` row and sends an email via Resend.
 

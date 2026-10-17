@@ -1,29 +1,23 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { PrismaD1 } from "@prisma/adapter-d1";
 import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaNeonHTTP } from "@prisma/adapter-neon";
 
-// Neon over plain HTTP: every query is one fetch, nothing stays open. That
-// is what lets a single client be shared across requests on Cloudflare
-// Workers, where a socket opened by one request cannot be used by the next
-// ("Cannot perform I/O on behalf of a different request"), and it runs the
-// same on Node. The trade-off is no transactions — writes that used to be
-// batched are sequential, which for this app is a check row arriving a few
-// milliseconds after its watch update.
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+// Cloudflare D1 through the worker's `DB` binding. Locally `next dev` gets a
+// Miniflare-backed binding from initOpenNextCloudflareForDev (next.config.ts),
+// stored under .wrangler/state; `npm run db:migrate:local` creates its tables.
+type D1Binding = ConstructorParameters<typeof PrismaD1>[0];
 
-function create(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) throw new Error("DATABASE_URL is not set");
-  return new PrismaClient({
-    adapter: new PrismaNeonHTTP(connectionString, { arrayMode: false, fullResults: true }),
-  });
-}
+let cached: { binding: D1Binding; client: PrismaClient } | undefined;
 
-// Created on first use rather than at import time: on Workers the
-// environment is populated per request, and nothing should touch the
-// database while a module loads.
+// Resolved on first use rather than at import time: the binding only exists
+// inside a request, and nothing should touch the database while a module loads.
 function client(): PrismaClient {
-  if (!globalForPrisma.prisma) globalForPrisma.prisma = create();
-  return globalForPrisma.prisma;
+  const binding = (getCloudflareContext().env as { DB?: D1Binding }).DB;
+  if (!binding) throw new Error("D1 binding DB is not configured");
+  if (cached?.binding !== binding) {
+    cached = { binding, client: new PrismaClient({ adapter: new PrismaD1(binding) }) };
+  }
+  return cached!.client;
 }
 
 export const db = new Proxy({} as PrismaClient, {
